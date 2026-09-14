@@ -595,4 +595,609 @@
     setTimeout(() => { if (recorder.state !== "inactive") recorder.stop(); }, 3000);
   });
 
+    });
+
+  // ---------- Main screen helpers ----------
+  function showStage(stage) {
+    orbStage.style.display = stage === "voice" ? "flex" : "none";
+    chatStage.style.display = stage === "text" ? "flex" : "none";
+    musicStage.style.display = stage === "music" ? "flex" : "none";
+
+    voiceTab.classList.toggle("active", stage === "voice");
+    textTab.classList.toggle("active", stage === "text");
+    musicTab.classList.toggle("active", stage === "music");
+  }
+
+  voiceTab.addEventListener("click", () => showStage("voice"));
+  textTab.addEventListener("click", () => showStage("text"));
+  musicTab.addEventListener("click", () => {
+    showStage("music");
+    loadMusic();
+  });
+
+  // ---------- Chat ----------
+  function addChatBubble(text, type) {
+    const bubble = document.createElement("div");
+    bubble.className = `bubble ${type}`;
+    bubble.textContent = text;
+    chatLog.appendChild(bubble);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  async function sendMessage() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    chatInput.value = "";
+    addChatBubble(text, "user");
+
+    orb.classList.add("thinking");
+    orbStatus.textContent = "Thinking…";
+
+    try {
+      const res = await fetch(`${API}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          text,
+          platform: PLATFORM
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        addChatBubble(data.error || "Something went wrong.", "miah");
+        return;
+      }
+
+      addChatBubble(data.reply || "I don't have a reply yet.", "miah");
+
+      // Some device actions are returned by the backend.
+      if (data.action) {
+        handleAction(data.action);
+      }
+    } catch (error) {
+      addChatBubble("Couldn't reach MIAH. Try again.", "miah");
+    } finally {
+      orb.classList.remove("thinking");
+      orbStatus.textContent = "Tap once to start talking with MIAH";
+    }
+  }
+
+  sendButton.addEventListener("click", sendMessage);
+
+  chatInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      sendMessage();
+    }
+  });
+
+  // ---------- Device actions ----------
+  function handleAction(action) {
+    if (!action) return;
+
+    if (typeof action === "string") {
+      try {
+        action = JSON.parse(action);
+      } catch {
+        return;
+      }
+    }
+
+    const type = action.type || action.action;
+
+    if (type === "open_app" && action.url) {
+      window.open(action.url, "_blank");
+      return;
+    }
+
+    if (type === "open_camera") {
+      openCamera();
+      return;
+    }
+
+    if (type === "open_url" && action.url) {
+      window.open(action.url, "_blank");
+      return;
+    }
+
+    if (type === "call" && action.url) {
+      window.location.href = action.url;
+      return;
+    }
+
+    if (type === "email" && action.url) {
+      window.location.href = action.url;
+    }
+  }
+
+  // ---------- Voice conversation ----------
+  let conversationRecorder = null;
+  let conversationChunks = [];
+  let conversationStream = null;
+  let voiceBusy = false;
+
+  async function startVoiceConversation() {
+    if (voiceBusy) return;
+
+    voiceBusy = true;
+    micButton.classList.add("active");
+    orb.classList.add("listening");
+    orbStatus.textContent = "Listening…";
+
+    try {
+      conversationStream =
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const mimeType = pickSupportedMimeType();
+
+      conversationRecorder = mimeType
+        ? new MediaRecorder(conversationStream, { mimeType })
+        : new MediaRecorder(conversationStream);
+
+      conversationChunks = [];
+
+      conversationRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          conversationChunks.push(event.data);
+        }
+      };
+
+      conversationRecorder.onstop = processVoiceRecording;
+
+      conversationRecorder.start();
+
+      // Record for up to 5 seconds.
+      setTimeout(() => {
+        if (
+          conversationRecorder &&
+          conversationRecorder.state !== "inactive"
+        ) {
+          conversationRecorder.stop();
+        }
+      }, 5000);
+
+    } catch (error) {
+      micButton.classList.remove("active");
+      orb.classList.remove("listening");
+      orbStatus.textContent = "Couldn't access the microphone.";
+      voiceBusy = false;
+    }
+  }
+
+  async function processVoiceRecording() {
+    if (!conversationRecorder) return;
+
+    if (conversationStream) {
+      conversationStream.getTracks().forEach((track) => track.stop());
+    }
+
+    micButton.classList.remove("active");
+    orb.classList.remove("listening");
+    orb.classList.add("thinking");
+    orbStatus.textContent = "Understanding…";
+
+    const actualType =
+      conversationRecorder.mimeType || "audio/webm";
+
+    const blob = new Blob(conversationChunks, {
+      type: actualType
+    });
+
+    const extension = mimeTypeToExtension(actualType);
+
+    const formData = new FormData();
+
+    formData.append(
+      "audio",
+      blob,
+      `message.${extension}`
+    );
+
+    try {
+      const response = await fetch(`${API}/api/transcribe`, {
+        method: "POST",
+        credentials: "include",
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Transcription failed.");
+      }
+
+      const text = (data.text || "").trim();
+
+      if (!text) {
+        orbStatus.textContent = "I didn't hear anything.";
+        return;
+      }
+
+      voiceLog.insertAdjacentHTML(
+        "beforeend",
+        `<p class="you"><strong>You:</strong> ${escapeText(text)}</p>`
+      );
+
+      await sendVoiceText(text);
+
+    } catch (error) {
+      orbStatus.textContent =
+        error.message || "Couldn't understand that.";
+    } finally {
+      orb.classList.remove("thinking");
+      voiceBusy = false;
+      conversationRecorder = null;
+      conversationChunks = [];
+    }
+  }
+
+  async function sendVoiceText(text) {
+    orb.classList.add("thinking");
+    orbStatus.textContent = "Thinking…";
+
+    try {
+      const response = await fetch(`${API}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          text,
+          platform: PLATFORM
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Chat failed.");
+      }
+
+      const reply = data.reply || "I don't have a reply yet.";
+
+      voiceLog.insertAdjacentHTML(
+        "beforeend",
+        `<p><strong>MIAH:</strong> ${escapeText(reply)}</p>`
+      );
+
+      voiceLog.scrollTop = voiceLog.scrollHeight;
+
+      if (data.action) {
+        handleAction(data.action);
+      }
+
+      await speakReply(reply);
+
+    } catch (error) {
+      voiceLog.insertAdjacentHTML(
+        "beforeend",
+        `<p><strong>MIAH:</strong> ${escapeText(
+          error.message || "Something went wrong."
+        )}</p>`
+      );
+    } finally {
+      orb.classList.remove("thinking");
+      orb.classList.remove("speaking");
+      orbStatus.textContent = "Tap once to start talking with MIAH";
+    }
+  }
+
+  function escapeText(text) {
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  async function speakReply(text) {
+    orb.classList.remove("thinking");
+    orb.classList.add("speaking");
+    orbStatus.textContent = "Speaking…";
+
+    try {
+      const response = await fetch(`${API}/api/speak`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({ text })
+      });
+
+      if (!response.ok) {
+        throw new Error("Speech unavailable.");
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      const audio = new Audio(audioUrl);
+
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        orb.classList.remove("speaking");
+        orbStatus.textContent =
+          "Tap once to start talking with MIAH";
+      };
+
+      audio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+        orb.classList.remove("speaking");
+        orbStatus.textContent =
+          "Tap once to start talking with MIAH";
+      };
+
+      await audio.play();
+
+    } catch {
+      // Fall back to browser speech if server speech is unavailable.
+      if ("speechSynthesis" in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+
+        utterance.onend = () => {
+          orb.classList.remove("speaking");
+          orbStatus.textContent =
+            "Tap once to start talking with MIAH";
+        };
+
+        speechSynthesis.cancel();
+        speechSynthesis.speak(utterance);
+      } else {
+        orb.classList.remove("speaking");
+        orbStatus.textContent =
+          "Tap once to start talking with MIAH";
+      }
+    }
+  }
+
+  micButton.addEventListener("click", () => {
+    if (!voiceBusy) {
+      startVoiceConversation();
+    }
+  });
+
+  // ---------- Music ----------
+  let currentAudio = null;
+  let currentTrack = null;
+
+  async function loadMusic() {
+    musicList.innerHTML =
+      '<div class="music-empty">Loading music…</div>';
+
+    try {
+      const response = await fetch(`${API}/api/music/list`, {
+        credentials: "include"
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Couldn't load music.");
+      }
+
+      const tracks = data.tracks || [];
+
+      if (!tracks.length) {
+        musicList.innerHTML = `
+          <div class="music-empty">
+            No music saved yet.<br>
+            Ask MIAH to find or save a song.
+          </div>
+        `;
+        return;
+      }
+
+      musicList.innerHTML = "";
+
+      tracks.forEach((track) => {
+        const row = document.createElement("div");
+        row.className = "track-row";
+
+        const dot = document.createElement("div");
+        dot.className = "track-dot";
+
+        const name = document.createElement("div");
+        name.className = "track-name";
+        name.textContent =
+          typeof track === "string"
+            ? track
+            : track.name || track.title || "Unknown track";
+
+        row.appendChild(dot);
+        row.appendChild(name);
+
+        row.addEventListener("click", () => {
+          const filename =
+            typeof track === "string"
+              ? track
+              : track.filename || track.file || track.name;
+
+          playTrack(filename, name.textContent, row);
+        });
+
+        musicList.appendChild(row);
+      });
+
+    } catch (error) {
+      musicList.innerHTML = `
+        <div class="music-empty">
+          Couldn't load music.
+        </div>
+      `;
+    }
+  }
+
+  async function playTrack(filename, displayName, row) {
+    if (!filename) return;
+
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+
+    document.querySelectorAll(".track-row").forEach((item) => {
+      item.classList.remove("playing");
+    });
+
+    if (row) {
+      row.classList.add("playing");
+    }
+
+    currentTrack = displayName;
+    playerTrackName.textContent = displayName;
+
+    const url =
+      `${API}/api/music/file/${encodeURIComponent(filename)}`;
+
+    currentAudio = new Audio(url);
+
+    currentAudio.addEventListener("timeupdate", updateProgress);
+    currentAudio.addEventListener("ended", () => {
+      playerPlayButton.textContent = "▶";
+      playerProgressFill.style.width = "0%";
+    });
+
+    try {
+      await currentAudio.play();
+      playerPlayButton.textContent = "❚❚";
+    } catch {
+      playerPlayButton.textContent = "▶";
+    }
+  }
+
+  function updateProgress() {
+    if (!currentAudio || !currentAudio.duration) return;
+
+    const percent =
+      (currentAudio.currentTime / currentAudio.duration) * 100;
+
+    playerProgressFill.style.width = `${percent}%`;
+  }
+
+  playerPlayButton.addEventListener("click", async () => {
+    if (!currentAudio) return;
+
+    if (currentAudio.paused) {
+      await currentAudio.play();
+      playerPlayButton.textContent = "❚❚";
+    } else {
+      currentAudio.pause();
+      playerPlayButton.textContent = "▶";
+    }
+  });
+
+  // ---------- Camera ----------
+  const cameraModal = $("camera-modal");
+  const cameraVideo = $("camera-video");
+  const cameraPhoto = $("camera-photo");
+  const cameraCanvas = $("camera-canvas");
+  const cameraClose = $("camera-close");
+  const cameraShutter = $("camera-shutter");
+  const cameraSave = $("camera-save");
+  const cameraRetake = $("camera-retake");
+  const cameraControlsLive = $("camera-controls-live");
+  const cameraControlsReview = $("camera-controls-review");
+
+  let cameraStream = null;
+  let capturedPhoto = null;
+
+  async function openCamera() {
+    cameraModal.classList.add("open");
+    cameraPhoto.style.display = "none";
+    cameraVideo.style.display = "block";
+    cameraControlsLive.style.display = "flex";
+    cameraControlsReview.style.display = "none";
+
+    try {
+      cameraStream =
+        await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+
+      cameraVideo.srcObject = cameraStream;
+
+    } catch {
+      closeCamera();
+      alert("Couldn't access the camera.");
+    }
+  }
+
+  function closeCamera() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      cameraStream = null;
+    }
+
+    cameraVideo.srcObject = null;
+    cameraModal.classList.remove("open");
+  }
+
+  cameraClose.addEventListener("click", closeCamera);
+
+  cameraShutter.addEventListener("click", () => {
+    if (!cameraStream) return;
+
+    cameraCanvas.width = cameraVideo.videoWidth;
+    cameraCanvas.height = cameraVideo.videoHeight;
+
+    const context = cameraCanvas.getContext("2d");
+
+    context.drawImage(
+      cameraVideo,
+      0,
+      0,
+      cameraCanvas.width,
+      cameraCanvas.height
+    );
+
+    capturedPhoto = cameraCanvas.toDataURL("image/jpeg", 0.92);
+
+    cameraPhoto.src = capturedPhoto;
+    cameraPhoto.style.display = "block";
+    cameraVideo.style.display = "none";
+
+    cameraControlsLive.style.display = "none";
+    cameraControlsReview.style.display = "flex";
+  });
+
+  cameraRetake.addEventListener("click", () => {
+    capturedPhoto = null;
+
+    cameraPhoto.style.display = "none";
+    cameraVideo.style.display = "block";
+
+    cameraControlsLive.style.display = "flex";
+    cameraControlsReview.style.display = "none";
+  });
+
+  cameraSave.addEventListener("click", () => {
+    if (!capturedPhoto) return;
+
+    const link = document.createElement("a");
+    link.href = capturedPhoto;
+    link.download = `miah-photo-${Date.now()}.jpg`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    closeCamera();
+  });
+
+  // ---------- Initial state ----------
+  showStage("voice");
+
+</script>
+</body>
+</html>
+
  
