@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#182848"/>
+      <stop offset="100%" stop-color="#050711"/>
+    </radialGradient>
+
+    <linearGradient id="core" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#63e6ff"/>
+      <stop offset="50%" stop-color="#8b7cff"/>
+      <stop offset="100%" stop-color="#d86cff"/>
+    </linearGradient>
+
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="32" cy="32" r="30" fill="url(#bg)"/>
+
+  <!-- Outer AI ring -->
+  <circle
+    cx="32"
+    cy="32"
+    r="24"
+    fill="none"
+    stroke="url(#core)"
+    stroke-width="1.5"
+    opacity="0.65"
+  />
+
+  <!-- MIAH neural M -->
+  <path
+    d="M17 43 V22
+       C17 19 21 18 23 21
+       L32 32
+       L41 21
+       C43 18 47 19 47 22
+       V43"
+    fill="none"
+    stroke="url(#core)"
+    stroke-width="5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#glow)"
+  />
+
+  <!-- AI core -->
+  <circle
+    cx="32"
+    cy="32"
+    r="4"
+    fill="#ffffff"
+    filter="url(#glow)"
+  />
+
+  <!-- Neural nodes -->
+  <circle cx="17" cy="43" r="2" fill="#63e6ff"/>
+  <circle cx="47" cy="43" r="2" fill="#d86cff"/>
+  <circle cx="32" cy="32" r="2" fill="#ffffff"/>
+</svg>
