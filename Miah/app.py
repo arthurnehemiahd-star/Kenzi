@@ -24,6 +24,7 @@ from flask import (
     send_from_directory,
     session,
 )
+from flask_cors import CORS
 
 from config import (
     HF_MODEL,
@@ -49,9 +50,35 @@ from datetime import timedelta
 # ----------------------------------------------------------------------
 # App setup
 # ----------------------------------------------------------------------
-app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
+app = Flask(__name__)
+
 app.secret_key = SECRET_KEY
 app.permanent_session_lifetime = timedelta(days=SESSION_LIFETIME_DAYS)
+
+# Frontend is hosted separately on Vercel.
+# Set this in Render to the exact Vercel origin, with no trailing slash.
+frontend_url = os.environ.get("FRONTEND_URL", "").strip()
+
+# Vercel and Render are different sites, so the session cookie must be
+# allowed in a cross-site request.
+app.config.update(
+    SESSION_COOKIE_SAMESITE="None",
+    SESSION_COOKIE_SECURE=True,
+)
+
+if frontend_url:
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": frontend_url}},
+        supports_credentials=True,
+    )
+
+    # Spotify endpoints also use the authenticated Flask session.
+    CORS(
+        app,
+        resources={r"/spotify/*": {"origins": frontend_url}},
+        supports_credentials=True,
+    )
 
 ensure_dirs()
 
@@ -143,9 +170,12 @@ def build_system_prompt(platform, memory_summary=None):
 # ----------------------------------------------------------------------
 @app.route("/")
 def index():
-    index_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
-    with open(index_path, "r", encoding="utf-8") as f:
-        return Response(f.read(), mimetype="text/html")
+    return jsonify({
+        "service": "MIAH API",
+        "status": "ok",
+        "frontend": frontend_url or None,
+        "message": "MIAH backend is running."
+    })
 
 
 # ----------------------------------------------------------------------
