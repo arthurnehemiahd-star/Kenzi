@@ -7,3 +7,4 @@ huggingface_hub>=0.24.0
 openai>=1.30.0
 numpy>=1.26.0,<2.0.0
 soundfile>=0.12.1
+openai-whisper
