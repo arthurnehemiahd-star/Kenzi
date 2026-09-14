@@ -1,0 +1,9 @@
+flask>=3.0
+requests>=2.31
+numpy>=1.24
+gunicorn>=21.2
+openai-whisper>=20231117
+TTS>=0.22.0
+soundfile>=0.12.1
+sounddevice>=0.4.6
+resemblyzer>=0.1.1
