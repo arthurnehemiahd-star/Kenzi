@@ -2,17 +2,30 @@
 
 Run with:
     python app.py
-or, for a real deployment behind a tunnel:
-    gunicorn -w 1 -k gthread --threads 4 -b 0.0.0.0:5000 app:app
 
-Note on workers: use ONE worker. The DB is a plain JSON file protected
-by an in-process lock — multiple worker processes would each hold their
-own lock and clobber each other. Threads within one worker are fine.
+Production:
+    gunicorn -w 1 -k gthread --threads 4 -b 0.0.0.0:$PORT app:app
+
+Important:
+    Use ONE Gunicorn worker. The MIAH database is a JSON file protected
+    by an in-process lock. Multiple worker processes could overwrite data.
+
+Authentication:
+    Password login only.
+
+Voice:
+    The enrolled voice is MIAH's SPEAKING VOICE.
+    It is NOT used for login.
+
+The user's microphone input is used only for speech-to-text.
 """
 
 import json
 import os
 import secrets
+import tempfile
+
+from datetime import timedelta
 
 from flask import (
     Flask,
@@ -21,7 +34,6 @@ from flask import (
     redirect,
     request,
     send_file,
-    send_from_directory,
     session,
 )
 
@@ -41,14 +53,20 @@ from db import (
     save_db,
 )
 
-from llm import LLMError, anthropic_tools_to_openai, call_llm
-from tools import execute_tool, get_tools_for_platform
+from llm import (
+    LLMError,
+    anthropic_tools_to_openai,
+    call_llm,
+)
+
+from tools import (
+    execute_tool,
+    get_tools_for_platform,
+)
 
 import auth as auth_mod
 import music as music_mod
 import voice as voice_mod
-
-from datetime import timedelta
 
 
 # ----------------------------------------------------------------------
@@ -58,27 +76,55 @@ from datetime import timedelta
 app = Flask(__name__)
 
 app.secret_key = SECRET_KEY
-app.permanent_session_lifetime = timedelta(days=SESSION_LIFETIME_DAYS)
+
+app.permanent_session_lifetime = timedelta(
+    days=SESSION_LIFETIME_DAYS
+)
 
 
 # ----------------------------------------------------------------------
 # Frontend / CORS configuration
 # ----------------------------------------------------------------------
 
-# The frontend is hosted separately on Vercel.
-# Set this in Render to the exact Vercel origin, with no trailing slash.
+# Exact Vercel frontend origin.
 #
-# Example:
-# FRONTEND_URL=https://kenzilynn.vercel.app
+# Render environment variable:
 #
-frontend_url = os.environ.get("FRONTEND_URL", "").strip()
+#     FRONTEND_URL=https://kenzilynn.vercel.app
+#
+# No trailing slash.
+#
+frontend_url = os.environ.get(
+    "FRONTEND_URL",
+    ""
+).strip()
 
 
-# Vercel and Render are different sites, so the session cookie must be
-# allowed in a cross-site request.
+# ----------------------------------------------------------------------
+# Session cookie configuration
+# ----------------------------------------------------------------------
+#
+# The frontend is on Vercel and the backend is on Render.
+# They are separate sites, so the session cookie must be allowed
+# in a cross-site request.
+#
+# SameSite=None + Secure:
+#     Allows cross-site HTTPS requests to carry the session cookie.
+#
+# Partitioned:
+#     Helps browsers that restrict ordinary third-party cookies.
+#     Flask versions that support SESSION_COOKIE_PARTITIONED will emit
+#     the Partitioned attribute automatically.
+#
+# HttpOnly:
+#     Prevents JavaScript from reading the session cookie directly.
+#
+
 app.config.update(
     SESSION_COOKIE_SAMESITE="None",
     SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_PARTITIONED=True,
 )
 
 
@@ -86,14 +132,15 @@ app.config.update(
 # Explicit CORS handling
 # ----------------------------------------------------------------------
 #
-# We handle CORS ourselves instead of relying on flask-cors.
+# We deliberately handle CORS ourselves.
 #
-# This makes sure:
-#   - normal API responses get CORS headers
-#   - authentication errors get CORS headers
-#   - 404/500 responses get CORS headers
-#   - OPTIONS preflight requests are handled
-#   - cookies are allowed between Vercel and Render
+# This guarantees that:
+#
+#   * normal API responses get CORS headers
+#   * 401 responses get CORS headers
+#   * 404/500 responses get CORS headers
+#   * OPTIONS preflight requests are handled
+#   * credentials/cookies are allowed
 #
 
 @app.before_request
@@ -108,31 +155,47 @@ def handle_cors_preflight():
 
 @app.after_request
 def add_cors_headers(response):
-    """Add CORS headers to responses from our Vercel frontend."""
+    """Add CORS headers for the configured Vercel frontend."""
 
     origin = request.headers.get("Origin")
 
-    if origin and origin == frontend_url:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
+    if frontend_url and origin == frontend_url:
 
-        response.headers["Access-Control-Allow-Methods"] = (
-            "GET, POST, OPTIONS"
-        )
+        response.headers[
+            "Access-Control-Allow-Origin"
+        ] = origin
 
-        response.headers["Access-Control-Allow-Headers"] = (
-            "Content-Type"
-        )
+        response.headers[
+            "Access-Control-Allow-Credentials"
+        ] = "true"
+
+        response.headers[
+            "Access-Control-Allow-Methods"
+        ] = "GET, POST, OPTIONS"
+
+        response.headers[
+            "Access-Control-Allow-Headers"
+        ] = "Content-Type"
 
         response.headers["Vary"] = "Origin"
 
     return response
 
 
+# ----------------------------------------------------------------------
+# Directory initialization
+# ----------------------------------------------------------------------
+
 ensure_dirs()
 
 
+# ----------------------------------------------------------------------
+# Authentication helper
+# ----------------------------------------------------------------------
+
 def _require_auth():
+    """Return True only for an authenticated MIAH session."""
+
     return session.get("authenticated") is True
 
 
@@ -179,6 +242,7 @@ or speculate beyond that — you genuinely don't know more."""
 
 
 PLATFORM_ADDENDUM = {
+
     "ios": (
         "\n\nThis user is on an iPhone. You also have run_shortcut available: "
         "it runs an iOS Shortcut by name for anything more complex than a "
@@ -206,10 +270,17 @@ PLATFORM_ADDENDUM = {
 }
 
 
-def build_system_prompt(platform, memory_summary=None):
-    prompt = MIAH_SYSTEM_PROMPT_BASE + PLATFORM_ADDENDUM.get(platform, "")
+def build_system_prompt(
+    platform,
+    memory_summary=None
+):
+    prompt = (
+        MIAH_SYSTEM_PROMPT_BASE
+        + PLATFORM_ADDENDUM.get(platform, "")
+    )
 
     if memory_summary:
+
         prompt += (
             "\n\nWhat you've learned about her from past conversations "
             "(your own private notes — never recite this back to her "
@@ -221,16 +292,17 @@ def build_system_prompt(platform, memory_summary=None):
 
 
 # ----------------------------------------------------------------------
-# Frontend
+# Frontend / health check
 # ----------------------------------------------------------------------
 
 @app.route("/")
 def index():
+
     return jsonify({
         "service": "MIAH API",
         "status": "ok",
         "frontend": frontend_url or None,
-        "message": "MIAH backend is running."
+        "message": "MIAH backend is running.",
     })
 
 
@@ -238,56 +310,101 @@ def index():
 # Status
 # ----------------------------------------------------------------------
 
-@app.route("/api/status", methods=["GET"])
+@app.route(
+    "/api/status",
+    methods=["GET"]
+)
 def status():
-    from db import get_voice_login_readiness
 
     db = load_db()
 
-    voice_login_ready, days_remaining = get_voice_login_readiness(db)
-
     return jsonify({
-        "voice_enrolled": os.path.exists(REFERENCE_CLIP_PATH),
-        "password_set": bool(db.get("password_hash")),
-        "voice_login_ready": voice_login_ready,
-        "voice_login_days_remaining": days_remaining,
+        "voice_enrolled": os.path.exists(
+            REFERENCE_CLIP_PATH
+        ),
+
+        "password_set": bool(
+            db.get("password_hash")
+        ),
+
         "model": HF_MODEL,
+
     })
 
 
 # ----------------------------------------------------------------------
-# Setup: voice enrollment
+# Session diagnostic
 # ----------------------------------------------------------------------
 
-@app.route("/api/enroll-voice", methods=["POST"])
+@app.route(
+    "/api/session",
+    methods=["GET"]
+)
+def session_status():
+
+    return jsonify({
+        "authenticated": (
+            session.get("authenticated") is True
+        )
+    })
+
+
+# ----------------------------------------------------------------------
+# One-time setup:
+# Save MIAH's speaking voice
+# ----------------------------------------------------------------------
+
+@app.route(
+    "/api/enroll-voice",
+    methods=["POST"]
+)
 def enroll_voice_endpoint():
 
     if "audio" not in request.files:
+
         return jsonify({
             "error": "No audio file provided"
         }), 400
 
+
     try:
+
+        audio_file = request.files["audio"]
+
+
         auth_mod.set_owner_voice(
-            request.files["audio"],
+            audio_file,
             REFERENCE_CLIP_PATH
         )
 
-    except Exception as e:
+
+    except Exception as error:
+
         return jsonify({
-            "error": f"Couldn't process that recording: {e}"
+            "error": (
+                "Couldn't process MIAH's voice recording: "
+                f"{error}"
+            )
         }), 500
 
+
     return jsonify({
-        "ok": True
+        "ok": True,
+        "message": (
+            "MIAH's speaking voice has been saved."
+        )
     })
 
 
 # ----------------------------------------------------------------------
-# Setup: password
+# One-time setup:
+# Create password
 # ----------------------------------------------------------------------
 
-@app.route("/api/set-password", methods=["POST"])
+@app.route(
+    "/api/set-password",
+    methods=["POST"]
+)
 def set_password_endpoint():
 
     data = request.get_json(
@@ -295,17 +412,34 @@ def set_password_endpoint():
         silent=True
     ) or {}
 
-    ok, error = auth_mod.set_password(
-        data.get("password", "")
+
+    password = (
+        data.get("password") or ""
     )
 
+
+    ok, error = auth_mod.set_password(
+        password
+    )
+
+
     if not ok:
+
         return jsonify({
             "error": error
         }), 400
 
+
+    # Mark the current browser session authenticated.
+    session.clear()
+
     session["authenticated"] = True
+
     session.permanent = True
+
+    # Force a session refresh.
+    session.modified = True
+
 
     return jsonify({
         "ok": True
@@ -313,34 +447,54 @@ def set_password_endpoint():
 
 
 # ----------------------------------------------------------------------
-# Login
+# Password login
 # ----------------------------------------------------------------------
 
-@app.route("/api/login", methods=["POST"])
+@app.route(
+    "/api/login",
+    methods=["POST"]
+)
 def login():
 
     db = load_db()
 
+
     if not db.get("password_hash"):
+
         return jsonify({
             "ok": False,
             "error": "No password set yet."
         }), 400
+
 
     data = request.get_json(
         force=True,
         silent=True
     ) or {}
 
+
+    password = (
+        data.get("password") or ""
+    )
+
+
     if auth_mod.check_password(
-        data.get("password", "")
+        password
     ):
+
+        session.clear()
+
         session["authenticated"] = True
+
         session.permanent = True
+
+        session.modified = True
+
 
         return jsonify({
             "ok": True
         })
+
 
     return jsonify({
         "ok": False,
@@ -349,42 +503,13 @@ def login():
 
 
 # ----------------------------------------------------------------------
-# Voice login
-# ----------------------------------------------------------------------
-
-@app.route("/api/voice-login", methods=["POST"])
-def voice_login():
-
-    if "audio" not in request.files:
-        return jsonify({
-            "ok": False,
-            "error": "No audio provided"
-        }), 400
-
-    ok, error, ready = auth_mod.try_voice_login(
-        request.files["audio"]
-    )
-
-    if ok:
-        session["authenticated"] = True
-        session.permanent = True
-
-        return jsonify({
-            "ok": True
-        })
-
-    return jsonify({
-        "ok": False,
-        "ready": ready,
-        "error": error
-    }), 401
-
-
-# ----------------------------------------------------------------------
 # Logout
 # ----------------------------------------------------------------------
 
-@app.route("/api/logout", methods=["POST"])
+@app.route(
+    "/api/logout",
+    methods=["POST"]
+)
 def logout():
 
     session.clear()
@@ -398,60 +523,86 @@ def logout():
 # Chat
 # ----------------------------------------------------------------------
 
-@app.route("/api/chat", methods=["POST"])
+@app.route(
+    "/api/chat",
+    methods=["POST"]
+)
 def chat():
 
     if not _require_auth():
+
         return jsonify({
             "error": "Not authenticated"
         }), 401
+
 
     data = request.get_json(
         force=True,
         silent=True
     ) or {}
 
+
     user_text = (
         data.get("text") or ""
     ).strip()
+
 
     platform = data.get(
         "platform",
         "unknown"
     )
 
+
     if not user_text:
+
         return jsonify({
             "error": "No text provided"
         }), 400
 
+
     db = load_db()
 
-    history = db["conversations"].setdefault(
-        CONVERSATION_KEY,
-        []
+
+    history = (
+        db["conversations"]
+        .setdefault(
+            CONVERSATION_KEY,
+            []
+        )
     )
+
 
     history.append({
         "role": "user",
         "content": user_text
     })
 
+
     system_prompt = build_system_prompt(
         platform,
         db.get("memory_summary")
     )
 
-    available_tools = anthropic_tools_to_openai(
-        get_tools_for_platform(platform)
+
+    available_tools = (
+        anthropic_tools_to_openai(
+            get_tools_for_platform(
+                platform
+            )
+        )
     )
 
+
     pending_action = None
+
     reply_text = ""
+
 
     try:
 
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(
+            MAX_TOOL_ITERATIONS
+        ):
 
             result = call_llm(
                 history,
@@ -459,29 +610,46 @@ def chat():
                 system=system_prompt
             )
 
-            message = result["choices"][0]["message"]
+
+            message = (
+                result["choices"][0]["message"]
+            )
+
 
             tool_calls = message.get(
                 "tool_calls"
             )
 
+
             assistant_entry = {
                 "role": "assistant",
-                "content": message.get("content")
+                "content": message.get(
+                    "content"
+                )
             }
 
+
             if tool_calls:
-                assistant_entry["tool_calls"] = tool_calls
+
+                assistant_entry[
+                    "tool_calls"
+                ] = tool_calls
+
 
             history.append(
                 assistant_entry
             )
 
+
             if not tool_calls:
+
                 reply_text = (
-                    message.get("content") or ""
+                    message.get("content")
+                    or ""
                 )
+
                 break
+
 
             for tool_call in tool_calls:
 
@@ -490,135 +658,195 @@ def chat():
                     {}
                 )
 
+
                 name = func.get(
                     "name",
                     ""
                 )
 
+
                 try:
+
                     tool_args = json.loads(
-                        func.get("arguments") or "{}"
+                        func.get(
+                            "arguments"
+                        ) or "{}"
                     )
 
                 except json.JSONDecodeError:
+
                     tool_args = {}
 
-                result_text, action = execute_tool(
-                    name,
-                    tool_args,
-                    db
+
+                result_text, action = (
+                    execute_tool(
+                        name,
+                        tool_args,
+                        db
+                    )
                 )
 
+
                 if action:
+
                     pending_action = action
+
 
                 history.append({
                     "role": "tool",
-                    "tool_call_id": tool_call.get(
-                        "id",
-                        ""
+                    "tool_call_id": (
+                        tool_call.get(
+                            "id",
+                            ""
+                        )
                     ),
                     "content": result_text,
                 })
 
+
         else:
+
             reply_text = (
-                "I got stuck in a loop — try asking again "
-                "in a simpler way."
+                "I got stuck in a loop — "
+                "try asking again in a simpler way."
             )
 
-    except LLMError as e:
 
-        # Don't save a half-turn to the DB.
+    except LLMError as error:
+
+        # Remove the incomplete user turn so
+        # the conversation history stays clean.
         history.pop()
 
+
         return jsonify({
-            "error": str(e)
+            "error": str(error)
         }), 502
+
 
     maybe_summarize_history(
         db,
         call_llm
     )
 
+
     save_db(db)
+
 
     payload = {
         "reply": reply_text
     }
 
+
     if pending_action:
-        payload["action"] = pending_action
+
+        payload["action"] = (
+            pending_action
+        )
+
 
     return jsonify(payload)
 
 
 # ----------------------------------------------------------------------
-# Voice: transcribe
+# Voice:
+# Your microphone -> speech to text
+#
+# IMPORTANT:
+# This does NOT save your microphone recordings
+# as a login voice.
 # ----------------------------------------------------------------------
 
-@app.route("/api/transcribe", methods=["POST"])
+@app.route(
+    "/api/transcribe",
+    methods=["POST"]
+)
 def transcribe():
 
     if not _require_auth():
+
         return jsonify({
             "error": "Not authenticated"
         }), 401
 
+
     if "audio" not in request.files:
+
         return jsonify({
             "error": "No audio file provided"
         }), 400
 
-    audio_file = request.files["audio"]
+
+    audio_file = request.files[
+        "audio"
+    ]
+
 
     original_name = os.path.basename(
-        audio_file.filename or "input.webm"
+        audio_file.filename
+        or "input.webm"
     )
 
+
     extension = (
-        os.path.splitext(original_name)[1]
+        os.path.splitext(
+            original_name
+        )[1]
         or ".webm"
     )
 
-    import tempfile
 
-    with tempfile.NamedTemporaryFile(
-        suffix=extension,
-        delete=False
-    ) as tmp:
+    tmp_path = None
 
-        audio_file.save(
-            tmp.name
-        )
-
-        tmp_path = tmp.name
 
     try:
 
-        text = voice_mod.transcribe_file(
-            tmp_path
+        with tempfile.NamedTemporaryFile(
+            suffix=extension,
+            delete=False
+        ) as tmp:
+
+            audio_file.save(
+                tmp.name
+            )
+
+            tmp_path = tmp.name
+
+
+        text = (
+            voice_mod.transcribe_file(
+                tmp_path
+            )
         )
 
-    except Exception as e:
+
+    except Exception as error:
 
         return jsonify({
-            "error": f"Transcription failed: {e}"
+            "error": (
+                "Transcription failed: "
+                f"{error}"
+            )
         }), 500
+
 
     finally:
 
-        # Learn her voice passively — but only as a side effect,
-        # never blocking the transcription response.
-        if os.path.exists(tmp_path):
+        if (
+            tmp_path
+            and os.path.exists(tmp_path)
+        ):
 
-            auth_mod.record_voice_sample(
-                tmp_path
-            )
+            try:
 
-            os.unlink(
-                tmp_path
-            )
+                os.unlink(
+                    tmp_path
+                )
+
+            except OSError:
+
+                pass
+
 
     return jsonify({
         "text": text
@@ -626,49 +854,74 @@ def transcribe():
 
 
 # ----------------------------------------------------------------------
-# Voice: speak
+# Voice:
+# MIAH text -> MIAH's saved speaking voice
+#
+# The saved REFERENCE_CLIP_PATH is MIAH's voice.
+# It is not an authentication voice.
 # ----------------------------------------------------------------------
 
-@app.route("/api/speak", methods=["POST"])
+@app.route(
+    "/api/speak",
+    methods=["POST"]
+)
 def speak():
 
     if not _require_auth():
+
         return jsonify({
             "error": "Not authenticated"
         }), 401
 
+
     if not os.path.exists(
         REFERENCE_CLIP_PATH
     ):
+
         return jsonify({
-            "error": "No voice enrolled on the server yet"
+            "error": (
+                "MIAH's speaking voice has "
+                "not been enrolled yet."
+            )
         }), 400
+
 
     data = request.get_json(
         force=True,
         silent=True
     ) or {}
 
+
     text = (
         data.get("text") or ""
     ).strip()
 
+
     if not text:
+
         return jsonify({
             "error": "No text provided"
         }), 400
 
+
     try:
 
-        output_path = voice_mod.synthesize_speech(
-            text
+        output_path = (
+            voice_mod.synthesize_speech(
+                text
+            )
         )
 
-    except Exception as e:
+
+    except Exception as error:
 
         return jsonify({
-            "error": f"Speech synthesis failed: {e}"
+            "error": (
+                "Speech synthesis failed: "
+                f"{error}"
+            )
         }), 500
+
 
     def _cleanup_and_send():
 
@@ -677,20 +930,32 @@ def speak():
             with open(
                 output_path,
                 "rb"
-            ) as f:
+            ) as audio_file:
 
-                data_bytes = f.read()
+                data_bytes = (
+                    audio_file.read()
+                )
+
 
             yield data_bytes
+
 
         finally:
 
             if os.path.exists(
                 output_path
             ):
-                os.unlink(
-                    output_path
-                )
+
+                try:
+
+                    os.unlink(
+                        output_path
+                    )
+
+                except OSError:
+
+                    pass
+
 
     return Response(
         _cleanup_and_send(),
@@ -702,57 +967,86 @@ def speak():
 # Spotify
 # ----------------------------------------------------------------------
 
-@app.route("/spotify/login")
+@app.route(
+    "/spotify/login"
+)
 def spotify_login():
 
     if not _require_auth():
-        return "Please log into MIAH first.", 401
+
+        return (
+            "Please log into MIAH first.",
+            401
+        )
+
 
     return redirect(
         music_mod.build_login_url()
     )
 
 
-@app.route("/spotify/callback")
+@app.route(
+    "/spotify/callback"
+)
 def spotify_callback():
 
     if not _require_auth():
-        return "Please log into MIAH first.", 401
+
+        return (
+            "Please log into MIAH first.",
+            401
+        )
+
 
     code = request.args.get(
         "code"
     )
 
+
     state = request.args.get(
         "state"
     )
 
+
     if not code:
+
         return (
-            "Spotify authorization was cancelled or failed.",
+            "Spotify authorization was "
+            "cancelled or failed.",
             400
         )
 
+
     try:
 
-        ok, message = music_mod.handle_callback(
-            code,
-            state
+        ok, message = (
+            music_mod.handle_callback(
+                code,
+                state
+            )
         )
 
-    except Exception as e:
+
+    except Exception as error:
 
         return (
-            f"Spotify authorization failed: {e}",
+            f"Spotify authorization failed: "
+            f"{error}",
             500
         )
 
+
     if not ok:
+
         return message, 400
 
+
     return (
-        f"{message} You can close this tab and go back to MIAH, "
-        '<a href="/" style="color:#4FD1FF;">tap here</a>.'
+        f"{message} You can close this tab "
+        "and go back to MIAH, "
+        '<a href="/" '
+        'style="color:#4FD1FF;">'
+        "tap here</a>."
     )
 
 
@@ -760,16 +1054,23 @@ def spotify_callback():
 # Music library
 # ----------------------------------------------------------------------
 
-@app.route("/api/music/list", methods=["GET"])
+@app.route(
+    "/api/music/list",
+    methods=["GET"]
+)
 def music_list():
 
     if not _require_auth():
+
         return jsonify({
             "error": "Not authenticated"
         }), 401
 
+
     return jsonify({
-        "tracks": music_mod.list_local_tracks()
+        "tracks": (
+            music_mod.list_local_tracks()
+        )
     })
 
 
@@ -780,18 +1081,25 @@ def music_list():
 def music_file(filename):
 
     if not _require_auth():
+
         return jsonify({
             "error": "Not authenticated"
         }), 401
 
-    full_path = music_mod.resolve_track_path(
-        filename
+
+    full_path = (
+        music_mod.resolve_track_path(
+            filename
+        )
     )
 
+
     if not full_path:
+
         return jsonify({
             "error": "Track not found"
         }), 404
+
 
     return send_file(
         full_path
@@ -799,40 +1107,55 @@ def music_file(filename):
 
 
 # ----------------------------------------------------------------------
-# CLI voice enrollment (optional)
+# Optional command-line voice enrollment
+#
+# This is still MIAH's speaking voice enrollment.
+# It is not a login voice.
 # ----------------------------------------------------------------------
 
-def enroll_voice_cli(seconds=25):
+def enroll_voice_cli(
+    seconds=25
+):
 
     import sounddevice as sd
     import soundfile as sf
 
+
     ensure_dirs()
+
 
     sample_rate = 22050
 
-    print(
-        f"Recording {seconds} seconds. "
-        "Speak naturally — read a paragraph"
-    )
 
     print(
-        "aloud, or talk about your day. "
-        "Clean, natural speech clones best."
+        f"Recording {seconds} seconds."
     )
+
+
+    print(
+        "Speak naturally. This recording "
+        "becomes MIAH's speaking voice."
+    )
+
 
     input(
-        "Press Enter when ready to start recording..."
+        "Press Enter when ready "
+        "to start recording..."
     )
 
+
     audio = sd.rec(
-        int(seconds * sample_rate),
+        int(
+            seconds * sample_rate
+        ),
         samplerate=sample_rate,
         channels=1,
         dtype="float32"
     )
 
+
     sd.wait()
+
 
     sf.write(
         REFERENCE_CLIP_PATH,
@@ -840,8 +1163,10 @@ def enroll_voice_cli(seconds=25):
         sample_rate
     )
 
+
     print(
-        f"\nSaved -> {REFERENCE_CLIP_PATH}"
+        f"\nSaved MIAH voice -> "
+        f"{REFERENCE_CLIP_PATH}"
     )
 
 
@@ -853,19 +1178,27 @@ if __name__ == "__main__":
 
     import argparse
 
+
     parser = argparse.ArgumentParser()
+
 
     parser.add_argument(
         "--enroll",
         action="store_true",
-        help="Enroll your voice from the terminal, then exit"
+        help=(
+            "Enroll MIAH's speaking voice "
+            "from the terminal, then exit"
+        )
     )
 
+
     args = parser.parse_args()
+
 
     if args.enroll:
 
         enroll_voice_cli()
+
 
     else:
 
@@ -876,8 +1209,10 @@ if __name__ == "__main__":
             )
         )
 
+
         app.run(
             host="0.0.0.0",
             port=port,
             debug=False
         )
+        
