@@ -1,154 +1,238 @@
-"""
-MIAH — Configuration
---------------------
+"""Central config for MIAH.
 
-All configuration for the MIAH assistant lives here.
+Every environment variable MIAH reads lives here, in one place.
 
-For Render Free:
-    Data is stored inside the application's miah_data/ directory.
+Storage:
+    Local development:
+        Miah/miah_data/
 
-For a Render paid plan with a Persistent Disk:
-    This file can later be changed to use /var/data/miah_data.
+    Render production:
+        Set:
+            MIAH_DATA_DIR=/var/data/miah_data
+
+        and mount a Render Persistent Disk at:
+            /var/data
+
+MIAH's enrolled voice is its SPEAKING VOICE.
+It is not used for login.
+
+The user's microphone is used only for speech-to-text.
 """
 
 import os
 import secrets
 
 
-# =============================================================================
-# BASE DIRECTORIES
-# =============================================================================
+# ----------------------------------------------------------------------
+# Base / persistent storage
+# ----------------------------------------------------------------------
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Render Free does not provide Persistent Disks.
-# Therefore we keep MIAH's data inside the application directory for now.
-DATA_DIR = os.path.join(BASE_DIR, "miah_data")
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
 
 
-# =============================================================================
-# DATA FILES / DIRECTORIES
-# =============================================================================
+# On Render, this should point inside the Persistent Disk.
+#
+# Render environment variable:
+#
+#     MIAH_DATA_DIR=/var/data/miah_data
+#
+# When the variable is not set, local development uses:
+#
+#     Miah/miah_data/
+#
+DATA_DIR = os.environ.get(
+    "MIAH_DATA_DIR",
+    os.path.join(
+        BASE_DIR,
+        "miah_data",
+    ),
+)
 
-# MIAH's enrolled speaking voice.
-# This is the voice MIAH uses when generating speech.
+
+# ----------------------------------------------------------------------
+# MIAH data files
+# ----------------------------------------------------------------------
+
+# Saved reference recording for MIAH's speaking voice.
 REFERENCE_CLIP_PATH = os.path.join(
     DATA_DIR,
     "owner_voice.wav",
 )
 
-# Main MIAH JSON database.
+# Conversation history, password hash, memory, etc.
 DB_PATH = os.path.join(
     DATA_DIR,
     "miah_db.json",
 )
 
-# Local music storage.
+# Local music files.
 MUSIC_DIR = os.path.join(
     DATA_DIR,
     "music",
 )
 
-# Spotify token cache.
+# Spotify OAuth token cache.
 SPOTIFY_TOKEN_CACHE = os.path.join(
     DATA_DIR,
     "spotify_tokens.json",
 )
 
 
-# =============================================================================
-# SECURITY
-# =============================================================================
+# ----------------------------------------------------------------------
+# Audio
+# ----------------------------------------------------------------------
 
-# IMPORTANT:
-# Set SECRET_KEY in Render Environment Variables for production.
+ALLOWED_AUDIO_EXTENSIONS = {
+    ".mp3",
+    ".wav",
+    ".m4a",
+    ".ogg",
+    ".flac",
+}
+
+
+# ----------------------------------------------------------------------
+# LLM
+# ----------------------------------------------------------------------
 #
-# Example:
-# SECRET_KEY=<long-random-secret>
+# Hugging Face Inference Providers
+# OpenAI-compatible chat completions endpoint
 #
-# The fallback is useful for local development, but changing the fallback
-# between restarts would invalidate signed authentication tokens.
-SECRET_KEY = os.environ.get(
-    "SECRET_KEY",
-    "miah-development-secret-change-this",
+
+HF_API_URL = (
+    "https://router.huggingface.co/v1/chat/completions"
 )
-
-
-# =============================================================================
-# SESSION / AUTHENTICATION
-# =============================================================================
-
-# How long signed login tokens remain valid.
-SESSION_LIFETIME_DAYS = int(
-    os.environ.get(
-        "SESSION_LIFETIME_DAYS",
-        "7",
-    )
-)
-
-
-# =============================================================================
-# AI MODEL
-# =============================================================================
 
 HF_MODEL = os.environ.get(
     "HF_MODEL",
     "meta-llama/Llama-3.3-70B-Instruct",
 )
 
+HF_TOKEN = os.environ.get(
+    "HF_TOKEN",
+)
 
-# Maximum number of tool-use loops MIAH can perform for one request.
-MAX_TOOL_ITERATIONS = int(
+LLM_TIMEOUT_SECONDS = 60
+
+LLM_MAX_TOKENS = 400
+
+
+# Maximum number of tool-call round trips for one
+# user request. This prevents accidental infinite loops.
+MAX_TOOL_ITERATIONS = 6
+
+
+# ----------------------------------------------------------------------
+# Flask session
+# ----------------------------------------------------------------------
+#
+# SECRET_KEY MUST be set in Render for stable sessions.
+#
+# Example Render variable:
+#
+#     SECRET_KEY=<a long random secret>
+#
+# The random fallback is useful for local development, but a deployment
+# should always have SECRET_KEY configured.
+#
+
+SECRET_KEY = (
     os.environ.get(
-        "MAX_TOOL_ITERATIONS",
-        "5",
+        "SECRET_KEY"
+    )
+    or secrets.token_hex(32)
+)
+
+SESSION_LIFETIME_DAYS = 30
+
+
+# ----------------------------------------------------------------------
+# Voice authentication settings
+# ----------------------------------------------------------------------
+#
+# These values are retained for compatibility with the existing
+# authentication module.
+#
+# IMPORTANT:
+#
+# The normal MIAH login flow is PASSWORD ONLY.
+#
+# MIAH's enrolled reference voice is its speaking voice.
+#
+# The microphone recordings made while talking to MIAH are NOT
+# automatically added to the voice profile.
+#
+
+VOICE_LOGIN_MIN_DAYS = float(
+    os.environ.get(
+        "VOICE_LOGIN_MIN_DAYS",
+        "4",
     )
 )
 
+VOICE_LOGIN_MIN_SAMPLES = 8
 
-# =============================================================================
-# OPTIONAL API CONFIGURATION
-# =============================================================================
+VOICE_PROFILE_MAX_SAMPLES = 60
 
-# Hugging Face token.
-# Keep the actual token in Render Environment Variables.
-HF_TOKEN = os.environ.get("HF_TOKEN", "")
+VOICE_MATCH_THRESHOLD = 0.75
 
 
-# Anthropic/API-related variables may be used by other modules.
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+# ----------------------------------------------------------------------
+# Conversation memory
+# ----------------------------------------------------------------------
 
-# OpenAI-compatible API key, if used by llm.py.
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+CONVERSATION_KEY = "main"
 
-# Optional API base URL.
-OPENAI_BASE_URL = os.environ.get(
-    "OPENAI_BASE_URL",
+SUMMARY_TRIGGER_COUNT = 40
+
+KEEP_RECENT_MESSAGES = 20
+
+
+# ----------------------------------------------------------------------
+# Spotify
+# ----------------------------------------------------------------------
+
+SPOTIFY_AUTH_URL = (
+    "https://accounts.spotify.com/authorize"
+)
+
+SPOTIFY_TOKEN_URL = (
+    "https://accounts.spotify.com/api/token"
+)
+
+SPOTIFY_API_BASE = (
+    "https://api.spotify.com/v1"
+)
+
+SPOTIFY_SCOPES = (
+    "user-library-modify "
+    "user-library-read"
+)
+
+SPOTIFY_CLIENT_ID = os.environ.get(
+    "SPOTIFY_CLIENT_ID",
+    "",
+)
+
+SPOTIFY_CLIENT_SECRET = os.environ.get(
+    "SPOTIFY_CLIENT_SECRET",
+    "",
+)
+
+SPOTIFY_REDIRECT_URI = os.environ.get(
+    "SPOTIFY_REDIRECT_URI",
     "",
 )
 
 
-# =============================================================================
-# FRONTEND
-# =============================================================================
-
-FRONTEND_URL = os.environ.get(
-    "FRONTEND_URL",
-    "https://kenzilynn.vercel.app",
-)
-
-
-# =============================================================================
-# MIAH DATA DIRECTORY SETUP
-# =============================================================================
+# ----------------------------------------------------------------------
+# Directory initialization
+# ----------------------------------------------------------------------
 
 def ensure_dirs():
-    """
-    Create all directories MIAH needs.
-
-    This version intentionally creates directories only inside BASE_DIR,
-    because Render Free does not provide /var/data.
-    """
+    """Create all MIAH data directories if they do not exist."""
 
     os.makedirs(
         DATA_DIR,
@@ -159,11 +243,3 @@ def ensure_dirs():
         MUSIC_DIR,
         exist_ok=True,
     )
-
-
-# =============================================================================
-# INITIAL SETUP
-# =============================================================================
-
-# Make sure the required directories exist whenever config.py is imported.
-ensure_dirs()
