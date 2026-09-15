@@ -1,169 +1,4498 @@
-"""
-MIAH — Configuration
---------------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
 
-All configuration for the MIAH assistant lives here.
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="/favicon.svg"
+  >
 
-For Render Free:
-    Data is stored inside the application's miah_data/ directory.
+  <meta charset="UTF-8" />
 
-For a Render paid plan with a Persistent Disk:
-    This file can later be changed to use /var/data/miah_data.
-"""
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
 
-import os
-import secrets
+  <title>MIAH</title>
+
+  <link
+    rel="manifest"
+    href="data:application/manifest+json,{%22name%22:%22MIAH%22,%22short_name%22:%22MIAH%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%230A0E17%22,%22theme_color%22:%22%230A0E17%22}"
+  />
+
+  <meta
+    name="apple-mobile-web-app-capable"
+    content="yes"
+  />
+
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="black-translucent"
+  />
+
+  <meta
+    name="apple-mobile-web-app-title"
+    content="MIAH"
+  />
+
+  <meta
+    name="mobile-web-app-capable"
+    content="yes"
+  />
+
+  <meta
+    name="theme-color"
+    content="#0A0E17"
+  />
+
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
+
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  >
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500&display=swap"
+    rel="stylesheet"
+  >
+
+  <style>
+
+    :root {
+      --bg: #0A0E17;
+      --surface: #121826;
+      --surface-2: #1A2233;
+      --primary: #4FD1FF;
+      --primary-dim: #2A6B85;
+      --amber: #E8B34D;
+      --text: #EAF2F8;
+      --text-muted: #6B7A8F;
+      --danger: #E8637A;
+    }
+
+    :root[data-theme="day"] {
+      --bg: #EEF2F7;
+      --surface: #FFFFFF;
+      --surface-2: #E3E9F0;
+      --primary: #2F8FB0;
+      --primary-dim: #BEE3EE;
+      --amber: #C98A2E;
+      --text: #172130;
+      --text-muted: #64748B;
+      --danger: #C94D5F;
+    }
+
+    body {
+      transition:
+        background-color 0.6s ease,
+        color 0.6s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif;
+      overflow: hidden;
+    }
+
+    #app {
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* --------------------------------------------------------------
+       ENTRY / PASSWORD SCREENS
+    -------------------------------------------------------------- */
+
+    .login-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .login-wordmark {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 48px;
+    }
+
+    .login-orb {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background:
+        radial-gradient(
+          circle at 35% 30%,
+          var(--primary),
+          var(--primary-dim) 70%
+        );
+      margin-bottom: 40px;
+      box-shadow:
+        0 0 40px rgba(79, 209, 255, 0.25);
+    }
+
+    .login-form {
+      width: 100%;
+      max-width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .login-input {
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      border-radius: 12px;
+      padding: 16px 18px;
+      color: var(--text);
+      font-size: 16px;
+      font-family: inherit;
+      outline: none;
+      text-align: center;
+      letter-spacing: 0.05em;
+    }
+
+    .login-input:focus {
+      border-color: var(--primary-dim);
+    }
+
+    .login-button {
+      background: var(--primary);
+      border: none;
+      border-radius: 12px;
+      padding: 16px;
+      color: #052430;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .login-button:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    .login-button:active {
+      transform: scale(0.98);
+    }
+
+    .login-error {
+      color: var(--danger);
+      font-size: 13px;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    /* --------------------------------------------------------------
+       MAIN
+    -------------------------------------------------------------- */
+
+    .main-screen {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 20px 0;
+    }
+
+    .info-button {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      color: var(--text-muted);
+      font-size: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .wordmark {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+    }
+
+    .mode-toggle {
+      display: flex;
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 3px;
+    }
+
+    .mode-toggle button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 16px;
+      cursor: pointer;
+    }
+
+    .mode-toggle button.active {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    /* --------------------------------------------------------------
+       VOICE
+    -------------------------------------------------------------- */
+
+    .orb-stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+    }
+
+    .orb-wrap {
+      width: 200px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .orb {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background:
+        radial-gradient(
+          circle at 35% 30%,
+          var(--primary),
+          var(--primary-dim) 75%
+        );
+      transition:
+        transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.4s ease;
+      box-shadow:
+        0 0 60px rgba(79, 209, 255, 0.2);
+    }
+
+    .orb.listening {
+      animation:
+        pulse-listen 1.4s ease-in-out infinite;
+    }
+
+    .orb.thinking {
+      background:
+        radial-gradient(
+          circle at 35% 30%,
+          var(--amber),
+          #8a5f1f 75%
+        );
+      animation:
+        pulse-think 0.9s ease-in-out infinite;
+      box-shadow:
+        0 0 60px rgba(232, 179, 77, 0.25);
+    }
+
+    .orb.speaking {
+      animation:
+        pulse-speak 0.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse-listen {
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.08);
+      }
+    }
+
+    @keyframes pulse-think {
+      0%,
+      100% {
+        transform:
+          scale(0.95)
+          rotate(0deg);
+      }
+
+      50% {
+        transform:
+          scale(1.02)
+          rotate(3deg);
+      }
+    }
+
+    @keyframes pulse-speak {
+      from {
+        transform: scale(1);
+      }
+
+      to {
+        transform: scale(1.05);
+      }
+    }
+
+    .orb-status {
+      font-size: 14px;
+      color: var(--text-muted);
+      letter-spacing: 0.02em;
+      min-height: 18px;
+    }
+
+    .mic-button {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .mic-button.active {
+      background: var(--primary-dim);
+      border-color: var(--primary);
+    }
+
+    .mic-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 10px 10px 0 0;
+      background: var(--text);
+    }
+
+    .voice-log {
+      width: 100%;
+      max-width: 480px;
+      padding: 0 24px;
+      max-height: 30vh;
+      overflow-y: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .voice-log .you {
+      color: var(--text);
+    }
+
+    .voice-log p {
+      margin: 6px 0;
+    }
+
+    /* --------------------------------------------------------------
+       CHAT
+    -------------------------------------------------------------- */
+
+    .chat-stage {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .bubble {
+      max-width: 78%;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .bubble.user {
+      align-self: flex-end;
+      background: var(--primary-dim);
+      color: var(--text);
+      border-bottom-right-radius: 4px;
+    }
+
+    .bubble.miah {
+      align-self: flex-start;
+      background: var(--surface);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 10px;
+      padding:
+        14px 16px
+        calc(14px + env(safe-area-inset-bottom));
+      background: var(--bg);
+      border-top: 1px solid var(--surface);
+    }
+
+    .chat-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      border-radius: 20px;
+      padding: 12px 18px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .chat-input:focus {
+      border-color: var(--primary-dim);
+    }
+
+    .send-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: none;
+      color: #052430;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* --------------------------------------------------------------
+       MUSIC
+    -------------------------------------------------------------- */
+
+    .music-stage {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .music-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+    }
+
+    .music-empty {
+      color: var(--text-muted);
+      font-size: 14px;
+      text-align: center;
+      padding: 40px 20px;
+      line-height: 1.6;
+    }
+
+    .track-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .track-row:active {
+      background: var(--surface);
+    }
+
+    .track-row.playing {
+      background: var(--surface);
+    }
+
+    .track-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .track-row.playing .track-dot {
+      background: var(--primary);
+    }
+
+    .track-name {
+      font-size: 15px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .player-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding:
+        14px 16px
+        calc(14px + env(safe-area-inset-bottom));
+      background: var(--surface);
+      border-top: 1px solid var(--surface-2);
+    }
+
+    .player-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .player-track-name {
+      font-size: 13px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 8px;
+    }
+
+    .player-progress-track {
+      height: 3px;
+      background: var(--surface-2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .player-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+    }
+
+    .player-play-button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: none;
+      color: #052430;
+      font-size: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* --------------------------------------------------------------
+       CAMERA
+    -------------------------------------------------------------- */
+
+    .camera-modal {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+    }
+
+    .camera-modal.open {
+      display: flex;
+    }
+
+    .camera-video,
+    .camera-photo {
+      flex: 1;
+      width: 100%;
+      object-fit: cover;
+      background: #000;
+    }
+
+    .camera-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      padding:
+        20px 20px
+        calc(20px + env(safe-area-inset-bottom));
+      background: #000;
+    }
+
+    .camera-shutter {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: #fff;
+      border: 4px solid rgba(255,255,255,0.3);
+      cursor: pointer;
+    }
+
+    .camera-close,
+    .camera-save,
+    .camera-retake {
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      color: var(--text);
+      border-radius: 20px;
+      padding: 12px 20px;
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .camera-save {
+      background: var(--primary);
+      color: #052430;
+      border: none;
+      font-weight: 600;
+    }
+
+    .camera-top-bar {
+      display: flex;
+      justify-content: flex-end;
+      padding:
+        calc(16px + env(safe-area-inset-top))
+        16px 0;
+    }
+
+    /* --------------------------------------------------------------
+       INFO MODAL
+    -------------------------------------------------------------- */
+
+    .info-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 14, 23, 0.92);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .info-modal.open {
+      display: flex;
+    }
+
+    .info-modal-sheet {
+      background: var(--surface);
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      max-width: 480px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding:
+        24px 24px
+        calc(24px + env(safe-area-inset-bottom));
+    }
+
+    .info-modal-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .info-feature {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--surface-2);
+    }
+
+    .info-feature:last-of-type {
+      border-bottom: none;
+    }
+
+    .info-feature-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      width: 28px;
+      text-align: center;
+    }
+
+    .info-feature-text h4 {
+      margin: 0 0 4px;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .info-feature-text p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .info-modal-close {
+      display: block;
+      width: 100%;
+      margin-top: 16px;
+      background: var(--surface-2);
+      border: none;
+      color: var(--text);
+      border-radius: 12px;
+      padding: 14px;
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div id="app">
+
+  <!-- ============================================================
+       ONE-TIME MIAH SPEAKING VOICE SETUP
+       This recording becomes MIAH's speaking voice.
+       It is NOT used for login.
+  ============================================================= -->
+
+  <div
+    class="login-screen"
+    id="setup-voice-screen"
+    style="display:none;"
+  >
+
+    <div class="login-wordmark">
+      MIAH
+    </div>
+
+    <div class="login-orb"></div>
+
+    <div
+      class="login-form"
+      style="
+        max-width:320px;
+        text-align:center;
+      "
+    >
+
+      <p
+        style="
+          color:var(--text-muted);
+          font-size:14px;
+          line-height:1.6;
+          margin:0 0 8px;
+        "
+      >
+        Before MIAH can speak, we need to save the voice
+        MIAH will use.
+      </p>
+
+      <p
+        style="
+          color:var(--text-muted);
+          font-size:13px;
+          line-height:1.5;
+          margin:0 0 16px;
+        "
+      >
+        Record the voice once. MIAH will use this saved
+        voice whenever it speaks.
+      </p>
+
+      <button
+        class="login-button"
+        id="setup-voice-record-button"
+      >
+        Start Recording
+      </button>
+
+      <div
+        id="setup-voice-status"
+        style="
+          color:var(--text-muted);
+          font-size:13px;
+          min-height:18px;
+        "
+      ></div>
+
+      <button
+        class="login-button"
+        id="setup-voice-save-button"
+        style="
+          display:none;
+          background:var(--amber);
+        "
+      >
+        Save MIAH's Voice
+      </button>
+
+      <button
+        class="camera-retake"
+        id="setup-voice-retake-button"
+        style="display:none;"
+      >
+        Record Again
+      </button>
+
+    </div>
+
+  </div>
 
 
-# =============================================================================
-# BASE DIRECTORIES
-# =============================================================================
+  <!-- ============================================================
+       ONE-TIME PASSWORD SETUP
+  ============================================================= -->
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+  <div
+    class="login-screen"
+    id="setup-password-screen"
+    style="display:none;"
+  >
 
-# Render Free does not provide Persistent Disks.
-# Therefore we keep MIAH's data inside the application directory for now.
-DATA_DIR = os.path.join(BASE_DIR, "miah_data")
+    <div class="login-wordmark">
+      MIAH
+    </div>
+
+    <div class="login-orb"></div>
+
+    <div class="login-form">
+
+      <p
+        style="
+          color:var(--text-muted);
+          font-size:14px;
+          line-height:1.6;
+          margin:0 0 8px;
+          text-align:center;
+        "
+      >
+        Welcome. Set a password to keep MIAH private.
+      </p>
+
+      <input
+        type="password"
+        class="login-input"
+        id="setup-password-input"
+        placeholder="Create a password"
+        autocomplete="new-password"
+      />
+
+      <input
+        type="password"
+        class="login-input"
+        id="setup-password-confirm"
+        placeholder="Confirm password"
+        autocomplete="new-password"
+      />
+
+      <button
+        class="login-button"
+        id="setup-password-button"
+      >
+        Create Password
+      </button>
+
+      <div
+        class="login-error"
+        id="setup-password-error"
+      ></div>
+
+    </div>
+
+  </div>
 
 
-# =============================================================================
-# DATA FILES / DIRECTORIES
-# =============================================================================
+  <!-- ============================================================
+       NORMAL LOGIN
+       Password only.
+       There is NO voice login.
+  ============================================================= -->
 
-# MIAH's enrolled speaking voice.
-# This is the voice MIAH uses when generating speech.
-REFERENCE_CLIP_PATH = os.path.join(
-    DATA_DIR,
-    "owner_voice.wav",
-)
+  <div
+    class="login-screen"
+    id="login-screen"
+    style="display:none;"
+  >
 
-# Main MIAH JSON database.
-DB_PATH = os.path.join(
-    DATA_DIR,
-    "miah_db.json",
-)
+    <div class="login-wordmark">
+      MIAH
+    </div>
 
-# Local music storage.
-MUSIC_DIR = os.path.join(
-    DATA_DIR,
-    "music",
-)
+    <div class="login-orb"></div>
 
-# Spotify token cache.
-SPOTIFY_TOKEN_CACHE = os.path.join(
-    DATA_DIR,
-    "spotify_tokens.json",
-)
+    <div class="login-form">
 
+      <input
+        type="password"
+        class="login-input"
+        id="password-input"
+        placeholder="Password"
+        autocomplete="current-password"
+      />
 
-# =============================================================================
-# SECURITY
-# =============================================================================
+      <button
+        class="login-button"
+        id="login-button"
+      >
+        Unlock
+      </button>
 
-# IMPORTANT:
-# Set SECRET_KEY in Render Environment Variables for production.
-#
-# Example:
-# SECRET_KEY=<long-random-secret>
-#
-# The fallback is useful for local development, but changing the fallback
-# between restarts would invalidate signed authentication tokens.
-SECRET_KEY = os.environ.get(
-    "SECRET_KEY",
-    "miah-development-secret-change-this",
-)
+      <div
+        class="login-error"
+        id="login-error"
+      ></div>
+
+    </div>
+
+  </div>
 
 
-# =============================================================================
-# SESSION / AUTHENTICATION
-# =============================================================================
+  <!-- ============================================================
+       MAIN MIAH SCREEN
+  ============================================================= -->
 
-# How long signed login tokens remain valid.
-SESSION_LIFETIME_DAYS = int(
-    os.environ.get(
-        "SESSION_LIFETIME_DAYS",
-        "7",
+  <div
+    class="main-screen"
+    id="main-screen"
+  >
+
+    <div class="top-bar">
+
+      <button
+        class="info-button"
+        id="info-button"
+      >
+        ⓘ
+      </button>
+
+      <div class="wordmark">
+        MIAH
+      </div>
+
+      <div class="mode-toggle">
+
+        <button
+          id="voice-tab"
+          class="active"
+        >
+          Voice
+        </button>
+
+        <button id="text-tab">
+          Text
+        </button>
+
+        <button id="music-tab">
+          Music
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- ==========================================================
+         VOICE STAGE
+    =========================================================== -->
+
+    <div
+      class="orb-stage"
+      id="orb-stage"
+    >
+
+      <div class="orb-wrap">
+
+        <div
+          class="orb"
+          id="orb"
+        ></div>
+
+      </div>
+
+      <div
+        class="orb-status"
+        id="orb-status"
+      >
+        Tap once to start talking with MIAH
+      </div>
+
+      <div
+        class="mic-button"
+        id="mic-button"
+      >
+
+        <div class="mic-icon"></div>
+
+      </div>
+
+      <div
+        class="voice-log"
+        id="voice-log"
+      ></div>
+
+    </div>
+
+
+    <!-- ==========================================================
+         CHAT STAGE
+    =========================================================== -->
+
+    <div
+      class="chat-stage"
+      id="chat-stage"
+    >
+
+      <div
+        class="chat-log"
+        id="chat-log"
+      ></div>
+
+      <div class="chat-input-row">
+
+        <input
+          type="text"
+          class="chat-input"
+          id="chat-input"
+          placeholder="Message MIAH"
+        />
+
+        <button
+          class="send-button"
+          id="send-button"
+        >
+          ↑
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- ==========================================================
+         MUSIC STAGE
+    =========================================================== -->
+
+    <div
+      class="music-stage"
+      id="music-stage"
+    >
+
+      <div
+        class="music-list"
+        id="music-list"
+      ></div>
+
+      <div
+        class="player-bar"
+        id="player-bar"
+      >
+
+        <div class="player-info">
+
+          <div
+            class="player-track-name"
+            id="player-track-name"
+          >
+            Nothing playing
+          </div>
+
+          <div
+            class="player-progress-track"
+            id="player-progress-track"
+          >
+
+            <div
+              class="player-progress-fill"
+              id="player-progress-fill"
+            ></div>
+
+          </div>
+
+        </div>
+
+        <button
+          class="player-play-button"
+          id="player-play-button"
+        >
+          ▶
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- ==============================================================
+     CAMERA
+================================================================ -->
+
+<div
+  class="camera-modal"
+  id="camera-modal"
+>
+
+  <div class="camera-top-bar">
+
+    <button
+      class="camera-close"
+      id="camera-close"
+    >
+      ✕
+    </button>
+
+  </div>
+
+  <video
+    class="camera-video"
+    id="camera-video"
+    autoplay
+    playsinline
+  ></video>
+
+  <img
+    class="camera-photo"
+    id="camera-photo"
+    style="display:none;"
+  />
+
+  <canvas
+    id="camera-canvas"
+    style="display:none;"
+  ></canvas>
+
+  <div
+    class="camera-controls"
+    id="camera-controls-live"
+  >
+
+    <div
+      class="camera-shutter"
+      id="camera-shutter"
+    ></div>
+
+  </div>
+
+  <div
+    class="camera-controls"
+    id="camera-controls-review"
+    style="display:none;"
+  >
+
+    <button
+      class="camera-retake"
+      id="camera-retake"
+    >
+      Retake
+    </button>
+
+    <button
+      class="camera-save"
+      id="camera-save"
+    >
+      Save Photo
+    </button>
+
+  </div>
+
+</div>
+
+
+<!-- ==============================================================
+     INFO
+================================================================ -->
+
+<div
+  class="info-modal"
+  id="info-modal"
+>
+
+  <div class="info-modal-sheet">
+
+    <div class="info-modal-title">
+      What MIAH can do
+    </div>
+
+    <div class="info-feature">
+
+      <div class="info-feature-icon">
+        🎙️
+      </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Talk, hands-free
+        </h4>
+
+        <p>
+          Tap the mic once and talk. MIAH listens,
+          understands, and replies out loud using
+          its saved speaking voice.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="info-feature">
+
+      <div class="info-feature-icon">
+        💬
+      </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Text chat
+        </h4>
+
+        <p>
+          Type to MIAH whenever we want to use
+          text instead.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="info-feature">
+
+      <div class="info-feature-icon">
+        📷
+      </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Camera
+        </h4>
+
+        <p>
+          Ask MIAH to open the camera and take
+          a photo.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="info-feature">
+
+      <div class="info-feature-icon">
+        🎵
+      </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Music
+        </h4>
+
+        <p>
+          Ask MIAH to find or save a song,
+          or browse saved music.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="info-feature">
+
+      <div class="info-feature-icon">
+        📱
+      </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Device actions
+        </h4>
+
+        <p>
+          Ask MIAH to open supported apps,
+          Maps, email, calls, and other
+          available actions.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="info-feature">
+
+      <div class="info-feature-icon">
+        🧠
+      </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Memory
+        </h4>
+
+        <p>
+          MIAH can remember conversation context
+          and stored information.
+        </p>
+
+      </div>
+
+    </div>
+
+    <button
+      class="info-modal-close"
+      id="info-modal-close"
+    >
+      Close
+    </button>
+
+  </div>
+
+</div>
+
+
+<script>
+
+  /* ==============================================================
+     CONFIG
+  ============================================================= */
+
+  const API =
+    "https://kenzi.onrender.com";
+
+  const AUTH_TOKEN_KEY =
+    "miah_auth_token";
+
+
+  const PLATFORM = (() => {
+
+    const ua =
+      navigator.userAgent || "";
+
+    if (
+      /iPhone|iPad|iPod/.test(ua)
+    ) {
+      return "ios";
+    }
+
+    if (
+      /Android/.test(ua)
+    ) {
+      return "android";
+    }
+
+    return "desktop";
+
+  })();
+
+
+  /* ==============================================================
+     TOKEN AUTHENTICATION
+  ============================================================== */
+
+  function getAuthToken() {
+
+    try {
+
+      return (
+        localStorage.getItem(
+          AUTH_TOKEN_KEY
+        ) || ""
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Could not read auth token:",
+        error
+      );
+
+      return "";
+
+    }
+
+  }
+
+
+  function saveAuthToken(token) {
+
+    if (!token) {
+      return;
+    }
+
+    try {
+
+      localStorage.setItem(
+        AUTH_TOKEN_KEY,
+        token
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Could not save auth token:",
+        error
+      );
+
+    }
+
+  }
+
+
+  function clearAuthToken() {
+
+    try {
+
+      localStorage.removeItem(
+        AUTH_TOKEN_KEY
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Could not clear auth token:",
+        error
+      );
+
+    }
+
+  }
+
+
+  function authHeaders(
+    extraHeaders = {}
+  ) {
+
+    const headers = {
+      ...extraHeaders
+    };
+
+    const token =
+      getAuthToken();
+
+    if (token) {
+
+      headers[
+        "Authorization"
+      ] =
+        `Bearer ${token}`;
+
+    }
+
+    return headers;
+
+  }
+
+
+  async function apiFetch(
+    url,
+    options = {}
+  ) {
+
+    const requestOptions = {
+      ...options,
+
+      headers:
+        authHeaders(
+          options.headers || {}
+        )
+    };
+
+
+    /*
+      We intentionally do not depend on
+      cross-site cookies here.
+
+      The signed bearer token is the
+      primary authentication mechanism.
+    */
+
+    const response =
+      await fetch(
+        url,
+        requestOptions
+      );
+
+
+    if (
+      response.status === 401
+    ) {
+
+      clearAuthToken();
+
+    }
+
+
+    return response;
+
+  }
+
+
+  /* ==============================================================
+     THEME
+  ============================================================== */
+
+  const DAY_START_HOUR =
+    7;
+
+  const DAY_END_HOUR =
+    19;
+
+
+  function applyTimeBasedTheme() {
+
+    const h =
+      new Date().getHours();
+
+    document.documentElement.setAttribute(
+      "data-theme",
+      (
+        h >= DAY_START_HOUR &&
+        h < DAY_END_HOUR
+      )
+        ? "day"
+        : "night"
+    );
+
+  }
+
+
+  applyTimeBasedTheme();
+
+
+  setInterval(
+    applyTimeBasedTheme,
+    5 * 60 * 1000
+  );
+
+
+  /* ==============================================================
+     ELEMENTS
+  ============================================================== */
+
+  const $ =
+    (id) =>
+      document.getElementById(id);
+
+
+  const setupVoiceScreen =
+    $("setup-voice-screen");
+
+  const setupVoiceRecordButton =
+    $("setup-voice-record-button");
+
+  const setupVoiceSaveButton =
+    $("setup-voice-save-button");
+
+  const setupVoiceRetakeButton =
+    $("setup-voice-retake-button");
+
+  const setupVoiceStatus =
+    $("setup-voice-status");
+
+  const setupPasswordScreen =
+    $("setup-password-screen");
+
+  const setupPasswordInput =
+    $("setup-password-input");
+
+  const setupPasswordConfirm =
+    $("setup-password-confirm");
+
+  const setupPasswordButton =
+    $("setup-password-button");
+
+  const setupPasswordError =
+    $("setup-password-error");
+
+  const loginScreen =
+    $("login-screen");
+
+  const mainScreen =
+    $("main-screen");
+
+  const passwordInput =
+    $("password-input");
+
+  const loginButton =
+    $("login-button");
+
+  const loginError =
+    $("login-error");
+
+  const infoButton =
+    $("info-button");
+
+  const infoModal =
+    $("info-modal");
+
+  const infoModalClose =
+    $("info-modal-close");
+
+  const voiceTab =
+    $("voice-tab");
+
+  const textTab =
+    $("text-tab");
+
+  const musicTab =
+    $("music-tab");
+
+  const orbStage =
+    $("orb-stage");
+
+  const chatStage =
+    $("chat-stage");
+
+  const musicStage =
+    $("music-stage");
+
+  const orb =
+    $("orb");
+
+  const orbStatus =
+    $("orb-status");
+
+  const micButton =
+    $("mic-button");
+
+  const voiceLog =
+    $("voice-log");
+
+  const chatLog =
+    $("chat-log");
+
+  const chatInput =
+    $("chat-input");
+
+  const sendButton =
+    $("send-button");
+
+  const musicList =
+    $("music-list");
+
+  const playerTrackName =
+    $("player-track-name");
+
+  const playerProgressFill =
+    $("player-progress-fill");
+
+  const playerPlayButton =
+    $("player-play-button");
+
+
+  /* ==============================================================
+     INFO
+  ============================================================== */
+
+  infoButton.addEventListener(
+    "click",
+    () => {
+
+      infoModal.classList.add(
+        "open"
+      );
+
+    }
+  );
+
+
+  infoModalClose.addEventListener(
+    "click",
+    () => {
+
+      infoModal.classList.remove(
+        "open"
+      );
+
+    }
+  );
+
+
+  infoModal.addEventListener(
+    "click",
+    (event) => {
+
+      if (
+        event.target === infoModal
+      ) {
+
+        infoModal.classList.remove(
+          "open"
+        );
+
+      }
+
+    }
+  );
+
+
+  /* ==============================================================
+     AUDIO MIME HELPERS
+  ============================================================== */
+
+  function pickSupportedMimeType() {
+
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4",
+      "audio/ogg;codecs=opus"
+    ];
+
+
+    for (
+      const type of candidates
+    ) {
+
+      if (
+        window.MediaRecorder &&
+        MediaRecorder.isTypeSupported(type)
+      ) {
+
+        return type;
+
+      }
+
+    }
+
+
+    return "";
+
+  }
+
+
+  function mimeTypeToExtension(
+    mimeType
+  ) {
+
+    if (
+      mimeType.includes("mp4")
+    ) {
+
+      return "m4a";
+
+    }
+
+    if (
+      mimeType.includes("ogg")
+    ) {
+
+      return "ogg";
+
+    }
+
+    return "webm";
+
+  }
+
+
+  /* ==============================================================
+     ENTRY SCREEN HELPERS
+  ============================================================== */
+
+  function hideAllEntryScreens() {
+
+    setupVoiceScreen.style.display =
+      "none";
+
+    setupPasswordScreen.style.display =
+      "none";
+
+    loginScreen.style.display =
+      "none";
+
+    mainScreen.style.display =
+      "none";
+
+  }
+
+
+  function showMainScreen() {
+
+    hideAllEntryScreens();
+
+    mainScreen.style.display =
+      "flex";
+
+    showStage(
+      "voice"
+    );
+
+  }
+
+
+  function showLoginScreen() {
+
+    hideAllEntryScreens();
+
+    loginScreen.style.display =
+      "flex";
+
+    setTimeout(
+      () => {
+        passwordInput.focus();
+      },
+      0
+    );
+
+  }
+
+
+  /* ==============================================================
+     STATUS / STARTUP
+  ============================================================== */
+
+  async function checkStatus() {
+
+    try {
+
+      const response =
+        await fetch(
+          `${API}/api/status`,
+          {
+            method: "GET",
+            cache: "no-store"
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      hideAllEntryScreens();
+
+
+      /*
+        voice_enrolled means:
+        MIAH's SPEAKING VOICE has been saved.
+
+        It does NOT mean voice login.
+      */
+
+      if (
+        !data.voice_enrolled
+      ) {
+
+        setupVoiceScreen.style.display =
+          "flex";
+
+        return;
+
+      }
+
+
+      if (
+        !data.password_set
+      ) {
+
+        setupPasswordScreen.style.display =
+          "flex";
+
+        return;
+
+      }
+
+
+      /*
+        If a valid bearer token is already
+        saved, try restoring the session
+        automatically.
+      */
+
+      const token =
+        getAuthToken();
+
+
+      if (token) {
+
+        try {
+
+          const sessionResponse =
+            await apiFetch(
+              `${API}/api/session`,
+              {
+                method: "GET",
+                cache: "no-store"
+              }
+            );
+
+
+          if (
+            sessionResponse.ok
+          ) {
+
+            const sessionData =
+              await sessionResponse.json();
+
+
+            if (
+              sessionData.authenticated
+            ) {
+
+              showMainScreen();
+
+              return;
+
+            }
+
+          }
+
+        } catch (error) {
+
+          console.warn(
+            "Saved token check failed:",
+            error
+          );
+
+        }
+
+      }
+
+
+      /*
+        No valid token:
+        show normal password login.
+      */
+
+      showLoginScreen();
+
+
+    } catch (error) {
+
+      console.error(
+        "Status check failed:",
+        error
+      );
+
+
+      hideAllEntryScreens();
+
+      loginScreen.style.display =
+        "flex";
+
+      loginError.textContent =
+        "Couldn't connect to MIAH.";
+
+    }
+
+  }
+
+
+  checkStatus();
+
+
+  /* ==============================================================
+     ONE-TIME MIAH SPEAKING VOICE ENROLLMENT
+  ============================================================== */
+
+  let setupMediaRecorder =
+    null;
+
+  let setupAudioChunks =
+    [];
+
+  let setupCapturedBlob =
+    null;
+
+  let setupMicStream =
+    null;
+
+
+  setupVoiceRecordButton.addEventListener(
+    "click",
+    async () => {
+
+      /*
+        START RECORDING
+      */
+
+      if (
+        setupVoiceRecordButton.textContent ===
+        "Start Recording"
+      ) {
+
+        try {
+
+          setupMicStream =
+            await navigator.mediaDevices
+              .getUserMedia({
+                audio: true
+              });
+
+        } catch (error) {
+
+          console.error(
+            "Microphone permission error:",
+            error
+          );
+
+          setupVoiceStatus.textContent =
+            "Couldn't access the microphone. Check permissions.";
+
+          return;
+
+        }
+
+
+        const mimeType =
+          pickSupportedMimeType();
+
+
+        try {
+
+          setupMediaRecorder =
+            mimeType
+              ? new MediaRecorder(
+                  setupMicStream,
+                  {
+                    mimeType
+                  }
+                )
+              : new MediaRecorder(
+                  setupMicStream
+                );
+
+        } catch (error) {
+
+          console.error(
+            "MediaRecorder error:",
+            error
+          );
+
+          setupMicStream
+            .getTracks()
+            .forEach(
+              (track) =>
+                track.stop()
+            );
+
+          setupVoiceStatus.textContent =
+            "This browser cannot record audio.";
+
+          return;
+
+        }
+
+
+        setupAudioChunks = [];
+
+
+        setupMediaRecorder.ondataavailable =
+          (event) => {
+
+            if (
+              event.data.size > 0
+            ) {
+
+              setupAudioChunks.push(
+                event.data
+              );
+
+            }
+
+          };
+
+
+        setupMediaRecorder.onstop =
+          () => {
+
+            const actualType =
+              setupMediaRecorder.mimeType ||
+              "audio/webm";
+
+
+            setupCapturedBlob =
+              new Blob(
+                setupAudioChunks,
+                {
+                  type: actualType
+                }
+              );
+
+
+            setupVoiceSaveButton.style.display =
+              "block";
+
+            setupVoiceRetakeButton.style.display =
+              "block";
+
+
+            setupVoiceStatus.textContent =
+              "Recording captured. Save it to make this MIAH's speaking voice.";
+
+
+            if (
+              setupMicStream
+            ) {
+
+              setupMicStream
+                .getTracks()
+                .forEach(
+                  (track) =>
+                    track.stop()
+                );
+
+            }
+
+          };
+
+
+        setupMediaRecorder.start();
+
+
+        setupVoiceRecordButton.textContent =
+          "Stop Recording";
+
+
+        setupVoiceStatus.textContent =
+          "Recording… speak naturally.";
+
+
+        setupVoiceSaveButton.style.display =
+          "none";
+
+        setupVoiceRetakeButton.style.display =
+          "none";
+
+        return;
+
+      }
+
+
+      /*
+        STOP RECORDING
+      */
+
+      if (
+        setupMediaRecorder &&
+        setupMediaRecorder.state !==
+          "inactive"
+      ) {
+
+        setupMediaRecorder.stop();
+
+      }
+
+
+      setupVoiceRecordButton.textContent =
+        "Start Recording";
+
+    }
+  );
+
+
+  /* ==============================================================
+     RETAKE MIAH VOICE RECORDING
+  ============================================================== */
+
+  setupVoiceRetakeButton.addEventListener(
+    "click",
+    () => {
+
+      setupCapturedBlob =
+        null;
+
+      setupAudioChunks =
+        [];
+
+      setupVoiceSaveButton.style.display =
+        "none";
+
+      setupVoiceRetakeButton.style.display =
+        "none";
+
+      setupVoiceStatus.textContent =
+        "";
+
+    }
+  );
+
+
+  /* ==============================================================
+     SAVE MIAH SPEAKING VOICE
+  ============================================================== */
+
+  setupVoiceSaveButton.addEventListener(
+    "click",
+    async () => {
+
+      if (
+        !setupCapturedBlob
+      ) {
+
+        return;
+
+      }
+
+
+      setupVoiceSaveButton.disabled =
+        true;
+
+
+      setupVoiceStatus.textContent =
+        "Saving MIAH's voice…";
+
+
+      const extension =
+        mimeTypeToExtension(
+          setupCapturedBlob.type ||
+          "audio/webm"
+        );
+
+
+      const formData =
+        new FormData();
+
+
+      formData.append(
+        "audio",
+        setupCapturedBlob,
+        `miah-voice.${extension}`
+      );
+
+
+      try {
+
+        /*
+          Voice enrollment is intentionally
+          NOT authenticated.
+
+          It is a one-time setup action.
+        */
+
+        const response =
+          await fetch(
+            `${API}/api/enroll-voice`,
+            {
+              method: "POST",
+              body: formData
+            }
+          );
+
+
+        const data =
+          await response.json();
+
+
+        if (
+          !response.ok
+        ) {
+
+          throw new Error(
+            data.error ||
+            "Couldn't save MIAH's voice."
+          );
+
+        }
+
+
+        if (
+          !data.ok
+        ) {
+
+          throw new Error(
+            data.error ||
+            "Couldn't save MIAH's voice."
+          );
+
+        }
+
+
+        setupVoiceStatus.textContent =
+          "MIAH's speaking voice has been saved.";
+
+
+        setupVoiceSaveButton.style.display =
+          "none";
+
+        setupVoiceRetakeButton.style.display =
+          "none";
+
+
+        setupCapturedBlob =
+          null;
+
+
+        setupAudioChunks =
+          [];
+
+
+        /*
+          After saving the voice,
+          move to password setup.
+        */
+
+        await checkStatus();
+
+
+      } catch (error) {
+
+        console.error(
+          "Voice enrollment error:",
+          error
+        );
+
+        setupVoiceStatus.textContent =
+          error.message ||
+          "Couldn't save MIAH's voice.";
+
+      } finally {
+
+        setupVoiceSaveButton.disabled =
+          false;
+
+      }
+
+    }
+  );
+
+
+  /* ==============================================================
+     PASSWORD SETUP
+  ============================================================== */
+
+  setupPasswordButton.addEventListener(
+    "click",
+    async () => {
+
+      const password1 =
+        setupPasswordInput.value;
+
+      const password2 =
+        setupPasswordConfirm.value;
+
+
+      setupPasswordError.textContent =
+        "";
+
+
+      if (
+        password1.length < 4
+      ) {
+
+        setupPasswordError.textContent =
+          "Password must be at least 4 characters.";
+
+        return;
+
+      }
+
+
+      if (
+        password1 !== password2
+      ) {
+
+        setupPasswordError.textContent =
+          "Passwords don't match.";
+
+        return;
+
+      }
+
+
+      setupPasswordButton.disabled =
+        true;
+
+      setupPasswordButton.textContent =
+        "Creating…";
+
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/set-password`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+              body: JSON.stringify({
+                password:
+                  password1
+              })
+            }
+          );
+
+
+        const data =
+          await response.json();
+
+
+        if (
+          !response.ok
+        ) {
+
+          throw new Error(
+            data.error ||
+            "Couldn't create password."
+          );
+
+        }
+
+
+        if (
+          !data.ok
+        ) {
+
+          throw new Error(
+            data.error ||
+            "Couldn't create password."
+          );
+
+        }
+
+
+        /*
+          IMPORTANT:
+          The backend now returns a bearer
+          authentication token.
+        */
+
+        if (
+          !data.token
+        ) {
+
+          throw new Error(
+            "MIAH did not return an authentication token."
+          );
+
+        }
+
+
+        saveAuthToken(
+          data.token
+        );
+
+
+        setupPasswordInput.value =
+          "";
+
+        setupPasswordConfirm.value =
+          "";
+
+
+        showMainScreen();
+
+
+      } catch (error) {
+
+        console.error(
+          "Password setup error:",
+          error
+        );
+
+        setupPasswordError.textContent =
+          error.message ||
+          "Couldn't reach MIAH.";
+
+      } finally {
+
+        setupPasswordButton.disabled =
+          false;
+
+        setupPasswordButton.textContent =
+          "Create Password";
+
+      }
+
+    }
+  );
+
+
+  /* ==============================================================
+     PASSWORD LOGIN
+  ============================================================== */
+
+  async function attemptLogin() {
+
+    const password =
+      passwordInput.value.trim();
+
+
+    loginError.textContent =
+      "";
+
+
+    if (
+      !password
+    ) {
+
+      loginError.textContent =
+        "Enter your password.";
+
+      return;
+
+    }
+
+
+    loginButton.disabled =
+      true;
+
+    loginButton.textContent =
+      "Unlocking…";
+
+
+    try {
+
+      const response =
+        await fetch(
+          `${API}/api/login`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+            body: JSON.stringify({
+              password
+            })
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error ||
+          "Login failed."
+        );
+
+      }
+
+
+      if (
+        !data.ok
+      ) {
+
+        throw new Error(
+          data.error ||
+          "Incorrect password."
+        );
+
+      }
+
+
+      if (
+        !data.token
+      ) {
+
+        throw new Error(
+          "MIAH did not return an authentication token."
+        );
+
+      }
+
+
+      saveAuthToken(
+        data.token
+      );
+
+
+      passwordInput.value =
+        "";
+
+
+      showMainScreen();
+
+
+    } catch (error) {
+
+      console.error(
+        "Login error:",
+        error
+      );
+
+      loginError.textContent =
+        error.message ||
+        "Couldn't reach MIAH.";
+
+    } finally {
+
+      loginButton.disabled =
+        false;
+
+      loginButton.textContent =
+        "Unlock";
+
+    }
+
+  }
+
+
+  loginButton.addEventListener(
+    "click",
+    attemptLogin
+  );
+
+
+  passwordInput.addEventListener(
+    "keydown",
+    (event) => {
+
+      if (
+        event.key === "Enter"
+      ) {
+
+        attemptLogin();
+
+      }
+
+    }
+  );
+
+
+  /* ==============================================================
+     MAIN SCREEN / TABS
+  ============================================================== */
+
+  function showStage(stage) {
+
+    orbStage.style.display =
+      stage === "voice"
+        ? "flex"
+        : "none";
+
+
+    chatStage.style.display =
+      stage === "text"
+        ? "flex"
+        : "none";
+
+
+    musicStage.style.display =
+      stage === "music"
+        ? "flex"
+        : "none";
+
+
+    voiceTab.classList.toggle(
+      "active",
+      stage === "voice"
+    );
+
+
+    textTab.classList.toggle(
+      "active",
+      stage === "text"
+    );
+
+
+    musicTab.classList.toggle(
+      "active",
+      stage === "music"
+    );
+
+  }
+
+
+  voiceTab.addEventListener(
+    "click",
+    () =>
+      showStage("voice")
+  );
+
+
+  textTab.addEventListener(
+    "click",
+    () =>
+      showStage("text")
+  );
+
+
+  musicTab.addEventListener(
+    "click",
+    () => {
+
+      showStage(
+        "music"
+      );
+
+      loadMusic();
+
+    }
+  );
+
+
+  /* ==============================================================
+     CHAT
+  ============================================================== */
+
+  function addChatBubble(
+    text,
+    type
+  ) {
+
+    const bubble =
+      document.createElement(
+        "div"
+      );
+
+
+    bubble.className =
+      `bubble ${type}`;
+
+
+    bubble.textContent =
+      text;
+
+
+    chatLog.appendChild(
+      bubble
+    );
+
+
+    chatLog.scrollTop =
+      chatLog.scrollHeight;
+
+  }
+
+
+  async function sendMessage() {
+
+    const text =
+      chatInput.value.trim();
+
+
+    if (
+      !text
+    ) {
+
+      return;
+
+    }
+
+
+    chatInput.value =
+      "";
+
+
+    addChatBubble(
+      text,
+      "user"
+    );
+
+
+    orb.classList.add(
+      "thinking"
+    );
+
+
+    orbStatus.textContent =
+      "Thinking…";
+
+
+    try {
+
+      const response =
+        await apiFetch(
+          `${API}/api/chat`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body: JSON.stringify({
+              text,
+              platform:
+                PLATFORM
+            })
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (
+        response.status === 401
+      ) {
+
+        showLoginScreen();
+
+        throw new Error(
+          "Your MIAH access token expired. Please unlock MIAH again."
+        );
+
+      }
+
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error ||
+          "Something went wrong."
+        );
+
+      }
+
+
+      addChatBubble(
+        data.reply ||
+        "I don't have a reply yet.",
+        "miah"
+      );
+
+
+      if (
+        data.action
+      ) {
+
+        handleAction(
+          data.action
+        );
+
+      }
+
+
+    } catch (error) {
+
+      addChatBubble(
+        error.message ||
+        "Couldn't reach MIAH. Try again.",
+        "miah"
+      );
+
+    } finally {
+
+      orb.classList.remove(
+        "thinking"
+      );
+
+
+      orbStatus.textContent =
+        "Tap once to start talking with MIAH";
+
+    }
+
+  }
+
+
+  sendButton.addEventListener(
+    "click",
+    sendMessage
+  );
+
+
+  chatInput.addEventListener(
+    "keydown",
+    (event) => {
+
+      if (
+        event.key === "Enter"
+      ) {
+
+        sendMessage();
+
+      }
+
+    }
+  );
+
+
+  /* ==============================================================
+     DEVICE ACTIONS
+  ============================================================== */
+
+  function handleAction(
+    action
+  ) {
+
+    if (
+      !action
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      typeof action === "string"
+    ) {
+
+      try {
+
+        action =
+          JSON.parse(action);
+
+      } catch {
+
+        return;
+
+      }
+
+    }
+
+
+    const type =
+      action.type ||
+      action.action;
+
+
+    if (
+      type === "open_app" &&
+      action.url
+    ) {
+
+      window.open(
+        action.url,
+        "_blank"
+      );
+
+      return;
+
+    }
+
+
+    if (
+      type === "open_camera"
+    ) {
+
+      openCamera();
+
+      return;
+
+    }
+
+
+    if (
+      type === "open_url" &&
+      action.url
+    ) {
+
+      window.open(
+        action.url,
+        "_blank"
+      );
+
+      return;
+
+    }
+
+
+    if (
+      type === "call" &&
+      action.url
+    ) {
+
+      window.location.href =
+        action.url;
+
+      return;
+
+    }
+
+
+    if (
+      type === "email" &&
+      action.url
+    ) {
+
+      window.location.href =
+        action.url;
+
+    }
+
+  }
+
+
+  /* ==============================================================
+     VOICE CONVERSATION
+     
+     This is YOUR microphone input.
+
+     It is NOT MIAH's speaking voice.
+  ============================================================== */
+
+  let conversationRecorder =
+    null;
+
+  let conversationChunks =
+    [];
+
+  let conversationStream =
+    null;
+
+  let voiceBusy =
+    false;
+
+
+  async function startVoiceConversation() {
+
+    if (
+      voiceBusy
+    ) {
+
+      return;
+
+    }
+
+
+    voiceBusy =
+      true;
+
+
+    micButton.classList.add(
+      "active"
+    );
+
+
+    orb.classList.add(
+      "listening"
+    );
+
+
+    orbStatus.textContent =
+      "Listening…";
+
+
+    try {
+
+      conversationStream =
+        await navigator.mediaDevices
+          .getUserMedia({
+            audio: true
+          });
+
+
+      const mimeType =
+        pickSupportedMimeType();
+
+
+      conversationRecorder =
+        mimeType
+          ? new MediaRecorder(
+              conversationStream,
+              {
+                mimeType
+              }
+            )
+          : new MediaRecorder(
+              conversationStream
+            );
+
+
+      conversationChunks =
+        [];
+
+
+      conversationRecorder
+        .ondataavailable =
+        (event) => {
+
+          if (
+            event.data.size > 0
+          ) {
+
+            conversationChunks.push(
+              event.data
+            );
+
+          }
+
+        };
+
+
+      conversationRecorder
+        .onstop =
+        processVoiceRecording;
+
+
+      conversationRecorder.start();
+
+
+      setTimeout(
+        () => {
+
+          if (
+            conversationRecorder &&
+            conversationRecorder.state !==
+              "inactive"
+          ) {
+
+            conversationRecorder.stop();
+
+          }
+
+        },
+        5000
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Voice conversation error:",
+        error
+      );
+
+
+      micButton.classList.remove(
+        "active"
+      );
+
+
+      orb.classList.remove(
+        "listening"
+      );
+
+
+      orbStatus.textContent =
+        "Couldn't access the microphone.";
+
+
+      voiceBusy =
+        false;
+
+    }
+
+  }
+
+
+  async function processVoiceRecording() {
+
+    if (
+      !conversationRecorder
+    ) {
+
+      voiceBusy =
+        false;
+
+      return;
+
+    }
+
+
+    if (
+      conversationStream
+    ) {
+
+      conversationStream
+        .getTracks()
+        .forEach(
+          (track) =>
+            track.stop()
+        );
+
+    }
+
+
+    micButton.classList.remove(
+      "active"
+    );
+
+
+    orb.classList.remove(
+      "listening"
+    );
+
+
+    orb.classList.add(
+      "thinking"
+    );
+
+
+    orbStatus.textContent =
+      "Understanding…";
+
+
+    const actualType =
+      conversationRecorder.mimeType ||
+      "audio/webm";
+
+
+    const blob =
+      new Blob(
+        conversationChunks,
+        {
+          type: actualType
+        }
+      );
+
+
+    const extension =
+      mimeTypeToExtension(
+        actualType
+      );
+
+
+    const formData =
+      new FormData();
+
+
+    formData.append(
+      "audio",
+      blob,
+      `message.${extension}`
+    );
+
+
+    try {
+
+      const response =
+        await apiFetch(
+          `${API}/api/transcribe`,
+          {
+            method: "POST",
+            body: formData
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (
+        response.status === 401
+      ) {
+
+        showLoginScreen();
+
+        throw new Error(
+          "Your MIAH access token expired. Please unlock MIAH again."
+        );
+
+      }
+
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error ||
+          "Transcription failed."
+        );
+
+      }
+
+
+      const text =
+        (
+          data.text ||
+          ""
+        ).trim();
+
+
+      if (
+        !text
+      ) {
+
+        orbStatus.textContent =
+          "I didn't hear anything.";
+
+        return;
+
+      }
+
+
+      voiceLog.insertAdjacentHTML(
+        "beforeend",
+        `<p class="you">
+          <strong>You:</strong>
+          ${escapeText(text)}
+        </p>`
+      );
+
+
+      await sendVoiceText(
+        text
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Voice processing error:",
+        error
+      );
+
+
+      orbStatus.textContent =
+        error.message ||
+        "Couldn't understand that.";
+
+    } finally {
+
+      orb.classList.remove(
+        "thinking"
+      );
+
+
+      voiceBusy =
+        false;
+
+
+      conversationRecorder =
+        null;
+
+
+      conversationChunks =
+        [];
+
+    }
+
+  }
+
+
+  /* ==============================================================
+     VOICE -> CHAT
+  ============================================================== */
+
+  async function sendVoiceText(
+    text
+  ) {
+
+    orb.classList.add(
+      "thinking"
+    );
+
+
+    orbStatus.textContent =
+      "Thinking…";
+
+
+    try {
+
+      const response =
+        await apiFetch(
+          `${API}/api/chat`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body: JSON.stringify({
+              text,
+              platform:
+                PLATFORM
+            })
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (
+        response.status === 401
+      ) {
+
+        showLoginScreen();
+
+        throw new Error(
+          "Your MIAH access token expired. Please unlock MIAH again."
+        );
+
+      }
+
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error ||
+          "Chat failed."
+        );
+
+      }
+
+
+      const reply =
+        data.reply ||
+        "I don't have a reply yet.";
+
+
+      voiceLog.insertAdjacentHTML(
+        "beforeend",
+        `<p>
+          <strong>MIAH:</strong>
+          ${escapeText(reply)}
+        </p>`
+      );
+
+
+      voiceLog.scrollTop =
+        voiceLog.scrollHeight;
+
+
+      if (
+        data.action
+      ) {
+
+        handleAction(
+          data.action
+        );
+
+      }
+
+
+      await speakReply(
+        reply
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Voice chat error:",
+        error
+      );
+
+
+      voiceLog.insertAdjacentHTML(
+        "beforeend",
+        `<p>
+          <strong>MIAH:</strong>
+          ${escapeText(
+            error.message ||
+            "Something went wrong."
+          )}
+        </p>`
+      );
+
+    } finally {
+
+      orb.classList.remove(
+        "thinking"
+      );
+
+      orb.classList.remove(
+        "speaking"
+      );
+
+      orbStatus.textContent =
+        "Tap once to start talking with MIAH";
+
+    }
+
+  }
+
+
+  /* ==============================================================
+     ESCAPE HTML
+  ============================================================== */
+
+  function escapeText(
+    text
+  ) {
+
+    return String(
+      text
     )
-)
+      .replace(
+        /&/g,
+        "&amp;"
+      )
+      .replace(
+        /</g,
+        "&lt;"
+      )
+      .replace(
+        />/g,
+        "&gt;"
+      )
+      .replace(
+        /"/g,
+        "&quot;"
+      )
+      .replace(
+        /'/g,
+        "&#039;"
+      );
+
+  }
 
 
-# =============================================================================
-# AI MODEL
-# =============================================================================
+  /* ==============================================================
+     MIAH SPEAKING
+     
+     /api/speak uses the saved MIAH
+     speaking voice on the Render server.
+  ============================================================== */
 
-HF_MODEL = os.environ.get(
-    "HF_MODEL",
-    "meta-llama/Llama-3.3-70B-Instruct",
-)
+  async function speakReply(
+    text
+  ) {
 
-
-# Maximum number of tool-use loops MIAH can perform for one request.
-MAX_TOOL_ITERATIONS = int(
-    os.environ.get(
-        "MAX_TOOL_ITERATIONS",
-        "5",
-    )
-)
+    orb.classList.remove(
+      "thinking"
+    );
 
 
-# =============================================================================
-# OPTIONAL API CONFIGURATION
-# =============================================================================
-
-# Hugging Face token.
-# Keep the actual token in Render Environment Variables.
-HF_TOKEN = os.environ.get("HF_TOKEN", "")
+    orb.classList.add(
+      "speaking"
+    );
 
 
-# Anthropic/API-related variables may be used by other modules.
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-
-# OpenAI-compatible API key, if used by llm.py.
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-
-# Optional API base URL.
-OPENAI_BASE_URL = os.environ.get(
-    "OPENAI_BASE_URL",
-    "",
-)
+    orbStatus.textContent =
+      "Speaking…";
 
 
-# =============================================================================
-# FRONTEND
-# =============================================================================
+    try {
 
-FRONTEND_URL = os.environ.get(
-    "FRONTEND_URL",
-    "https://kenzilynn.vercel.app",
-)
+      const response =
+        await apiFetch(
+          `${API}/api/speak`,
+          {
+            method: "POST",
 
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
 
-# =============================================================================
-# MIAH DATA DIRECTORY SETUP
-# =============================================================================
-
-def ensure_dirs():
-    """
-    Create all directories MIAH needs.
-
-    This version intentionally creates directories only inside BASE_DIR,
-    because Render Free does not provide /var/data.
-    """
-
-    os.makedirs(
-        DATA_DIR,
-        exist_ok=True,
-    )
-
-    os.makedirs(
-        MUSIC_DIR,
-        exist_ok=True,
-    )
+            body: JSON.stringify({
+              text
+            })
+          }
+        );
 
 
-# =============================================================================
-# INITIAL SETUP
-# =============================================================================
+      if (
+        response.status === 401
+      ) {
 
-# Make sure the required directories exist whenever config.py is imported.
-ensure_dirs()
+        showLoginScreen();
+
+        throw new Error(
+          "Your MIAH access token expired."
+        );
+
+      }
+
+
+      if (
+        !response.ok
+      ) {
+
+        const errorText =
+          await response.text();
+
+        console.error(
+          "MIAH speech response:",
+          errorText
+        );
+
+        throw new Error(
+          "Speech unavailable."
+        );
+
+      }
+
+
+      const audioBlob =
+        await response.blob();
+
+
+      const audioUrl =
+        URL.createObjectURL(
+          audioBlob
+        );
+
+
+      const audio =
+        new Audio(
+          audioUrl
+        );
+
+
+      audio.onended =
+        () => {
+
+          URL.revokeObjectURL(
+            audioUrl
+          );
+
+
+          orb.classList.remove(
+            "speaking"
+          );
+
+
+          orbStatus.textContent =
+            "Tap once to start talking with MIAH";
+
+        };
+
+
+      audio.onerror =
+        () => {
+
+          URL.revokeObjectURL(
+            audioUrl
+          );
+
+
+          orb.classList.remove(
+            "speaking"
+          );
+
+
+          orbStatus.textContent =
+            "Tap once to start talking with MIAH";
+
+        };
+
+
+      await audio.play();
+
+
+    } catch (error) {
+
+      console.error(
+        "MIAH speech error:",
+        error
+      );
+
+
+      /*
+        Browser speech is only a fallback.
+
+        Normally the server should return
+        speech generated from MIAH's saved voice.
+      */
+
+      if (
+        "speechSynthesis" in window
+      ) {
+
+        const utterance =
+          new SpeechSynthesisUtterance(
+            text
+          );
+
+
+        utterance.onend =
+          () => {
+
+            orb.classList.remove(
+              "speaking"
+            );
+
+
+            orbStatus.textContent =
+              "Tap once to start talking with MIAH";
+
+          };
+
+
+        speechSynthesis.cancel();
+
+
+        speechSynthesis.speak(
+          utterance
+        );
+
+      } else {
+
+        orb.classList.remove(
+          "speaking"
+        );
+
+
+        orbStatus.textContent =
+          "Tap once to start talking with MIAH";
+
+      }
+
+    }
+
+  }
+
+
+  /* ==============================================================
+     MIC BUTTON
+  ============================================================== */
+
+  micButton.addEventListener(
+    "click",
+    () => {
+
+      if (
+        !voiceBusy
+      ) {
+
+        startVoiceConversation();
+
+      }
+
+    }
+  );
+
+
+  /* ==============================================================
+     MUSIC
+  ============================================================== */
+
+  let currentAudio =
+    null;
+
+  let currentTrack =
+    null;
+
+  let currentAudioUrl =
+    null;
+
+
+  async function loadMusic() {
+
+    musicList.innerHTML =
+      '<div class="music-empty">Loading music…</div>';
+
+
+    try {
+
+      const response =
+        await apiFetch(
+          `${API}/api/music/list`,
+          {
+            method: "GET"
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (
+        response.status === 401
+      ) {
+
+        showLoginScreen();
+
+        throw new Error(
+          "Your MIAH access token expired."
+        );
+
+      }
+
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error ||
+          "Couldn't load music."
+        );
+
+      }
+
+
+      const tracks =
+        data.tracks || [];
+
+
+      if (
+        !tracks.length
+      ) {
+
+        musicList.innerHTML = `
+          <div class="music-empty">
+            No music saved yet.<br>
+            Ask MIAH to find or save a song.
+          </div>
+        `;
+
+        return;
+
+      }
+
+
+      musicList.innerHTML =
+        "";
+
+
+      tracks.forEach(
+        (track) => {
+
+          const row =
+            document.createElement(
+              "div"
+            );
+
+
+          row.className =
+            "track-row";
+
+
+          const dot =
+            document.createElement(
+              "div"
+            );
+
+
+          dot.className =
+            "track-dot";
+
+
+          const name =
+            document.createElement(
+              "div"
+            );
+
+
+          name.className =
+            "track-name";
+
+
+          name.textContent =
+            typeof track === "string"
+              ? track
+              : track.name ||
+                track.title ||
+                "Unknown track";
+
+
+          row.appendChild(
+            dot
+          );
+
+          row.appendChild(
+            name
+          );
+
+
+          row.addEventListener(
+            "click",
+            () => {
+
+              const filename =
+                typeof track === "string"
+                  ? track
+                  : track.filename ||
+                    track.file ||
+                    track.name;
+
+
+              playTrack(
+                filename,
+                name.textContent,
+                row
+              );
+
+            }
+          );
+
+
+          musicList.appendChild(
+            row
+          );
+
+        }
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Music loading error:",
+        error
+      );
+
+
+      musicList.innerHTML = `
+        <div class="music-empty">
+          Couldn't load music.
+        </div>
+      `;
+
+    }
+
+  }
+
+
+  async function playTrack(
+    filename,
+    displayName,
+    row
+  ) {
+
+    if (
+      !filename
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      currentAudio
+    ) {
+
+      currentAudio.pause();
+
+      currentAudio =
+        null;
+
+    }
+
+
+    if (
+      currentAudioUrl
+    ) {
+
+      URL.revokeObjectURL(
+        currentAudioUrl
+      );
+
+      currentAudioUrl =
+        null;
+
+    }
+
+
+    document
+      .querySelectorAll(
+        ".track-row"
+      )
+      .forEach(
+        (item) => {
+
+          item.classList.remove(
+            "playing"
+          );
+
+        }
+      );
+
+
+    if (
+      row
+    ) {
+
+      row.classList.add(
+        "playing"
+      );
+
+    }
+
+
+    currentTrack =
+      displayName;
+
+
+    playerTrackName.textContent =
+      displayName;
+
+
+    playerPlayButton.textContent =
+      "…";
+
+
+    const url =
+      `${API}/api/music/file/${encodeURIComponent(
+        filename
+      )}`;
+
+
+    try {
+
+      /*
+        Native new Audio(url) cannot attach
+        our Authorization header.
+
+        Therefore fetch the file with the
+        bearer token, then play the Blob.
+      */
+
+      const response =
+        await apiFetch(
+          url,
+          {
+            method: "GET"
+          }
+        );
+
+
+      if (
+        response.status === 401
+      ) {
+
+        showLoginScreen();
+
+        throw new Error(
+          "Your MIAH access token expired."
+        );
+
+      }
+
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          "Couldn't load the track."
+        );
+
+      }
+
+
+      const blob =
+        await response.blob();
+
+
+      currentAudioUrl =
+        URL.createObjectURL(
+          blob
+        );
+
+
+      currentAudio =
+        new Audio(
+          currentAudioUrl
+        );
+
+
+      currentAudio.addEventListener(
+        "timeupdate",
+        updateProgress
+      );
+
+
+      currentAudio.addEventListener(
+        "ended",
+        () => {
+
+          playerPlayButton.textContent =
+            "▶";
+
+          playerProgressFill.style.width =
+            "0%";
+
+        }
+      );
+
+
+      currentAudio.addEventListener(
+        "error",
+        () => {
+
+          playerPlayButton.textContent =
+            "▶";
+
+        }
+      );
+
+
+      await currentAudio.play();
+
+
+      playerPlayButton.textContent =
+        "❚❚";
+
+
+    } catch (error) {
+
+      console.error(
+        "Music playback error:",
+        error
+      );
+
+
+      playerPlayButton.textContent =
+        "▶";
+
+    }
+
+  }
+
+
+  function updateProgress() {
+
+    if (
+      !currentAudio ||
+      !currentAudio.duration
+    ) {
+
+      return;
+
+    }
+
+
+    const percent =
+      (
+        currentAudio.currentTime /
+        currentAudio.duration
+      ) * 100;
+
+
+    playerProgressFill.style.width =
+      `${percent}%`;
+
+  }
+
+
+  playerPlayButton.addEventListener(
+    "click",
+    async () => {
+
+      if (
+        !currentAudio
+      ) {
+
+        return;
+
+      }
+
+
+      if (
+        currentAudio.paused
+      ) {
+
+        await currentAudio.play();
+
+        playerPlayButton.textContent =
+          "❚❚";
+
+      } else {
+
+        currentAudio.pause();
+
+        playerPlayButton.textContent =
+          "▶";
+
+      }
+
+    }
+  );
+
+
+  /* ==============================================================
+     CAMERA
+  ============================================================== */
+
+  const cameraModal =
+    $("camera-modal");
+
+  const cameraVideo =
+    $("camera-video");
+
+  const cameraPhoto =
+    $("camera-photo");
+
+  const cameraCanvas =
+    $("camera-canvas");
+
+  const cameraClose =
+    $("camera-close");
+
+  const cameraShutter =
+    $("camera-shutter");
+
+  const cameraSave =
+    $("camera-save");
+
+  const cameraRetake =
+    $("camera-retake");
+
+  const cameraControlsLive =
+    $("camera-controls-live");
+
+  const cameraControlsReview =
+    $("camera-controls-review");
+
+
+  let cameraStream =
+    null;
+
+  let capturedPhoto =
+    null;
+
+
+  async function openCamera() {
+
+    cameraModal.classList.add(
+      "open"
+    );
+
+
+    cameraPhoto.style.display =
+      "none";
+
+
+    cameraVideo.style.display =
+      "block";
+
+
+    cameraControlsLive.style.display =
+      "flex";
+
+
+    cameraControlsReview.style.display =
+      "none";
+
+
+    try {
+
+      cameraStream =
+        await navigator.mediaDevices
+          .getUserMedia({
+            video: true,
+            audio: false
+          });
+
+
+      cameraVideo.srcObject =
+        cameraStream;
+
+
+    } catch (error) {
+
+      console.error(
+        "Camera error:",
+        error
+      );
+
+
+      closeCamera();
+
+
+      alert(
+        "Couldn't access the camera."
+      );
+
+    }
+
+  }
+
+
+  function closeCamera() {
+
+    if (
+      cameraStream
+    ) {
+
+      cameraStream
+        .getTracks()
+        .forEach(
+          (track) =>
+            track.stop()
+        );
+
+
+      cameraStream =
+        null;
+
+    }
+
+
+    cameraVideo.srcObject =
+      null;
+
+
+    cameraModal.classList.remove(
+      "open"
+    );
+
+  }
+
+
+  cameraClose.addEventListener(
+    "click",
+    closeCamera
+  );
+
+
+  cameraShutter.addEventListener(
+    "click",
+    () => {
+
+      if (
+        !cameraStream
+      ) {
+
+        return;
+
+      }
+
+
+      cameraCanvas.width =
+        cameraVideo.videoWidth;
+
+
+      cameraCanvas.height =
+        cameraVideo.videoHeight;
+
+
+      const context =
+        cameraCanvas.getContext(
+          "2d"
+        );
+
+
+      context.drawImage(
+        cameraVideo,
+        0,
+        0,
+        cameraCanvas.width,
+        cameraCanvas.height
+      );
+
+
+      capturedPhoto =
+        cameraCanvas.toDataURL(
+          "image/jpeg",
+          0.92
+        );
+
+
+      cameraPhoto.src =
+        capturedPhoto;
+
+
+      cameraPhoto.style.display =
+        "block";
+
+
+      cameraVideo.style.display =
+        "none";
+
+
+      cameraControlsLive.style.display =
+        "none";
+
+
+      cameraControlsReview.style.display =
+        "flex";
+
+    }
+  );
+
+
+  cameraRetake.addEventListener(
+    "click",
+    () => {
+
+      capturedPhoto =
+        null;
+
+
+      cameraPhoto.style.display =
+        "none";
+
+
+      cameraVideo.style.display =
+        "block";
+
+
+      cameraControlsLive.style.display =
+        "flex";
+
+
+      cameraControlsReview.style.display =
+        "none";
+
+    }
+  );
+
+
+  cameraSave.addEventListener(
+    "click",
+    () => {
+
+      if (
+        !capturedPhoto
+      ) {
+
+        return;
+
+      }
+
+
+      const link =
+        document.createElement(
+          "a"
+        );
+
+
+      link.href =
+        capturedPhoto;
+
+
+      link.download =
+        `miah-photo-${Date.now()}.jpg`;
+
+
+      document.body.appendChild(
+        link
+      );
+
+
+      link.click();
+
+
+      link.remove();
+
+
+      closeCamera();
+
+    }
+  );
+
+
+  /* ==============================================================
+     INITIAL STATE
+  ============================================================== */
+
+  showStage(
+    "voice"
+  );
+
+</script>
+
+</body>
+</html>
