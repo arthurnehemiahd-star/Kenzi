@@ -1,9 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="/favicon.svg"
+  >
 
   <meta charset="UTF-8" />
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -16,17 +22,41 @@
     href="data:application/manifest+json,{%22name%22:%22MIAH%22,%22short_name%22:%22MIAH%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%230A0E17%22,%22theme_color%22:%22%230A0E17%22}"
   />
 
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta
+    name="apple-mobile-web-app-capable"
+    content="yes"
+  />
+
   <meta
     name="apple-mobile-web-app-status-bar-style"
     content="black-translucent"
   />
-  <meta name="apple-mobile-web-app-title" content="MIAH" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="theme-color" content="#0A0E17" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta
+    name="apple-mobile-web-app-title"
+    content="MIAH"
+  />
+
+  <meta
+    name="mobile-web-app-capable"
+    content="yes"
+  />
+
+  <meta
+    name="theme-color"
+    content="#0A0E17"
+  />
+
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
+
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  >
 
   <link
     href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500&display=swap"
@@ -34,6 +64,7 @@
   >
 
   <style>
+
     :root {
       --bg: #0A0E17;
       --surface: #121826;
@@ -59,7 +90,9 @@
     }
 
     body {
-      transition: background-color 0.6s ease, color 0.6s ease;
+      transition:
+        background-color 0.6s ease,
+        color 0.6s ease;
     }
 
     * {
@@ -117,7 +150,8 @@
           var(--primary-dim) 70%
         );
       margin-bottom: 40px;
-      box-shadow: 0 0 40px rgba(79, 209, 255, 0.25);
+      box-shadow:
+        0 0 40px rgba(79, 209, 255, 0.25);
     }
 
     .login-form {
@@ -155,6 +189,11 @@
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
+    }
+
+    .login-button:disabled {
+      opacity: 0.65;
+      cursor: wait;
     }
 
     .login-button:active {
@@ -264,11 +303,13 @@
       transition:
         transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
         box-shadow 0.4s ease;
-      box-shadow: 0 0 60px rgba(79, 209, 255, 0.2);
+      box-shadow:
+        0 0 60px rgba(79, 209, 255, 0.2);
     }
 
     .orb.listening {
-      animation: pulse-listen 1.4s ease-in-out infinite;
+      animation:
+        pulse-listen 1.4s ease-in-out infinite;
     }
 
     .orb.thinking {
@@ -278,12 +319,15 @@
           var(--amber),
           #8a5f1f 75%
         );
-      animation: pulse-think 0.9s ease-in-out infinite;
-      box-shadow: 0 0 60px rgba(232, 179, 77, 0.25);
+      animation:
+        pulse-think 0.9s ease-in-out infinite;
+      box-shadow:
+        0 0 60px rgba(232, 179, 77, 0.25);
     }
 
     .orb.speaking {
-      animation: pulse-speak 0.5s ease-in-out infinite alternate;
+      animation:
+        pulse-speak 0.5s ease-in-out infinite alternate;
     }
 
     @keyframes pulse-listen {
@@ -300,11 +344,15 @@
     @keyframes pulse-think {
       0%,
       100% {
-        transform: scale(0.95) rotate(0deg);
+        transform:
+          scale(0.95)
+          rotate(0deg);
       }
 
       50% {
-        transform: scale(1.02) rotate(3deg);
+        transform:
+          scale(1.02)
+          rotate(3deg);
       }
     }
 
@@ -413,7 +461,8 @@
     .chat-input-row {
       display: flex;
       gap: 10px;
-      padding: 14px 16px
+      padding:
+        14px 16px
         calc(14px + env(safe-area-inset-bottom));
       background: var(--bg);
       border-top: 1px solid var(--surface);
@@ -514,7 +563,8 @@
       display: flex;
       align-items: center;
       gap: 14px;
-      padding: 14px 16px
+      padding:
+        14px 16px
         calc(14px + env(safe-area-inset-bottom));
       background: var(--surface);
       border-top: 1px solid var(--surface-2);
@@ -589,7 +639,8 @@
       align-items: center;
       justify-content: center;
       gap: 40px;
-      padding: 20px 20px
+      padding:
+        20px 20px
         calc(20px + env(safe-area-inset-bottom));
       background: #000;
     }
@@ -656,7 +707,8 @@
       max-width: 480px;
       max-height: 80vh;
       overflow-y: auto;
-      padding: 24px 24px
+      padding:
+        24px 24px
         calc(24px + env(safe-area-inset-bottom));
     }
 
@@ -711,6 +763,7 @@
       font-size: 14px;
       cursor: pointer;
     }
+
   </style>
 </head>
 
@@ -719,9 +772,9 @@
 <div id="app">
 
   <!-- ============================================================
-       ONE-TIME MIAH VOICE SETUP
-       This recording is MIAH's SPEAKING VOICE.
-       It is NOT used to log into MIAH.
+       ONE-TIME MIAH SPEAKING VOICE SETUP
+       This recording becomes MIAH's speaking voice.
+       It is NOT used for login.
   ============================================================= -->
 
   <div
@@ -729,14 +782,21 @@
     id="setup-voice-screen"
     style="display:none;"
   >
-    <div class="login-wordmark">MIAH</div>
+
+    <div class="login-wordmark">
+      MIAH
+    </div>
 
     <div class="login-orb"></div>
 
     <div
       class="login-form"
-      style="max-width:320px; text-align:center;"
+      style="
+        max-width:320px;
+        text-align:center;
+      "
     >
+
       <p
         style="
           color:var(--text-muted);
@@ -745,7 +805,8 @@
           margin:0 0 8px;
         "
       >
-        Before MIAH can speak, we need to save the voice MIAH will use.
+        Before MIAH can speak, we need to save the voice
+        MIAH will use.
       </p>
 
       <p
@@ -756,8 +817,8 @@
           margin:0 0 16px;
         "
       >
-        Record your voice once. MIAH will use this saved voice whenever it
-        speaks. This setup is only done once.
+        Record the voice once. MIAH will use this saved
+        voice whenever it speaks.
       </p>
 
       <button
@@ -794,7 +855,9 @@
       >
         Record Again
       </button>
+
     </div>
+
   </div>
 
 
@@ -807,7 +870,10 @@
     id="setup-password-screen"
     style="display:none;"
   >
-    <div class="login-wordmark">MIAH</div>
+
+    <div class="login-wordmark">
+      MIAH
+    </div>
 
     <div class="login-orb"></div>
 
@@ -854,13 +920,14 @@
       ></div>
 
     </div>
+
   </div>
 
 
   <!-- ============================================================
        NORMAL LOGIN
        Password only.
-       NO voice login.
+       There is NO voice login.
   ============================================================= -->
 
   <div
@@ -868,7 +935,10 @@
     id="login-screen"
     style="display:none;"
   >
-    <div class="login-wordmark">MIAH</div>
+
+    <div class="login-wordmark">
+      MIAH
+    </div>
 
     <div class="login-orb"></div>
 
@@ -895,6 +965,7 @@
       ></div>
 
     </div>
+
   </div>
 
 
@@ -916,7 +987,9 @@
         ⓘ
       </button>
 
-      <div class="wordmark">MIAH</div>
+      <div class="wordmark">
+        MIAH
+      </div>
 
       <div class="mode-toggle">
 
@@ -936,6 +1009,7 @@
         </button>
 
       </div>
+
     </div>
 
 
@@ -949,10 +1023,12 @@
     >
 
       <div class="orb-wrap">
+
         <div
           class="orb"
           id="orb"
         ></div>
+
       </div>
 
       <div
@@ -966,7 +1042,9 @@
         class="mic-button"
         id="mic-button"
       >
+
         <div class="mic-icon"></div>
+
       </div>
 
       <div
@@ -1044,10 +1122,12 @@
             class="player-progress-track"
             id="player-progress-track"
           >
+
             <div
               class="player-progress-fill"
               id="player-progress-fill"
             ></div>
+
           </div>
 
         </div>
@@ -1078,12 +1158,14 @@
 >
 
   <div class="camera-top-bar">
+
     <button
       class="camera-close"
       id="camera-close"
     >
       ✕
     </button>
+
   </div>
 
   <video
@@ -1108,10 +1190,12 @@
     class="camera-controls"
     id="camera-controls-live"
   >
+
     <div
       class="camera-shutter"
       id="camera-shutter"
     ></div>
+
   </div>
 
   <div
@@ -1119,6 +1203,7 @@
     id="camera-controls-review"
     style="display:none;"
   >
+
     <button
       class="camera-retake"
       id="camera-retake"
@@ -1132,6 +1217,7 @@
     >
       Save Photo
     </button>
+
   </div>
 
 </div>
@@ -1153,65 +1239,131 @@
     </div>
 
     <div class="info-feature">
-      <div class="info-feature-icon">🎙️</div>
-      <div class="info-feature-text">
-        <h4>Talk, hands-free</h4>
-        <p>
-          Tap the mic once and talk. MIAH listens, understands,
-          and replies out loud using its saved speaking voice.
-        </p>
+
+      <div class="info-feature-icon">
+        🎙️
       </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Talk, hands-free
+        </h4>
+
+        <p>
+          Tap the mic once and talk. MIAH listens,
+          understands, and replies out loud using
+          its saved speaking voice.
+        </p>
+
+      </div>
+
     </div>
 
     <div class="info-feature">
-      <div class="info-feature-icon">💬</div>
-      <div class="info-feature-text">
-        <h4>Text chat</h4>
-        <p>
-          Type to MIAH whenever we want to use text instead.
-        </p>
+
+      <div class="info-feature-icon">
+        💬
       </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Text chat
+        </h4>
+
+        <p>
+          Type to MIAH whenever we want to use
+          text instead.
+        </p>
+
+      </div>
+
     </div>
 
     <div class="info-feature">
-      <div class="info-feature-icon">📷</div>
-      <div class="info-feature-text">
-        <h4>Camera</h4>
-        <p>
-          Ask MIAH to open the camera and take a photo.
-        </p>
+
+      <div class="info-feature-icon">
+        📷
       </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Camera
+        </h4>
+
+        <p>
+          Ask MIAH to open the camera and take
+          a photo.
+        </p>
+
+      </div>
+
     </div>
 
     <div class="info-feature">
-      <div class="info-feature-icon">🎵</div>
-      <div class="info-feature-text">
-        <h4>Music</h4>
-        <p>
-          Ask MIAH to find or save a song, or browse saved music.
-        </p>
+
+      <div class="info-feature-icon">
+        🎵
       </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Music
+        </h4>
+
+        <p>
+          Ask MIAH to find or save a song,
+          or browse saved music.
+        </p>
+
+      </div>
+
     </div>
 
     <div class="info-feature">
-      <div class="info-feature-icon">📱</div>
-      <div class="info-feature-text">
-        <h4>Device actions</h4>
-        <p>
-          Ask MIAH to open supported apps, Maps, email,
-          calls, and other available actions.
-        </p>
+
+      <div class="info-feature-icon">
+        📱
       </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Device actions
+        </h4>
+
+        <p>
+          Ask MIAH to open supported apps,
+          Maps, email, calls, and other
+          available actions.
+        </p>
+
+      </div>
+
     </div>
 
     <div class="info-feature">
-      <div class="info-feature-icon">🧠</div>
-      <div class="info-feature-text">
-        <h4>Memory</h4>
-        <p>
-          MIAH can remember conversation context and stored information.
-        </p>
+
+      <div class="info-feature-icon">
+        🧠
       </div>
+
+      <div class="info-feature-text">
+
+        <h4>
+          Memory
+        </h4>
+
+        <p>
+          MIAH can remember conversation context
+          and stored information.
+        </p>
+
+      </div>
+
     </div>
 
     <button
@@ -1232,17 +1384,27 @@
      CONFIG
   ============================================================= */
 
-  const API = "https://kenzi.onrender.com";
+  const API =
+    "https://kenzi.onrender.com";
+
+  const AUTH_TOKEN_KEY =
+    "miah_auth_token";
+
 
   const PLATFORM = (() => {
 
-    const ua = navigator.userAgent || "";
+    const ua =
+      navigator.userAgent || "";
 
-    if (/iPhone|iPad|iPod/.test(ua)) {
+    if (
+      /iPhone|iPad|iPod/.test(ua)
+    ) {
       return "ios";
     }
 
-    if (/Android/.test(ua)) {
+    if (
+      /Android/.test(ua)
+    ) {
       return "android";
     }
 
@@ -1252,26 +1414,178 @@
 
 
   /* ==============================================================
-     THEME
-  ============================================================= */
+     TOKEN AUTHENTICATION
+  ============================================================== */
 
-  const DAY_START_HOUR = 7;
-  const DAY_END_HOUR = 19;
+  function getAuthToken() {
+
+    try {
+
+      return (
+        localStorage.getItem(
+          AUTH_TOKEN_KEY
+        ) || ""
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Could not read auth token:",
+        error
+      );
+
+      return "";
+
+    }
+
+  }
+
+
+  function saveAuthToken(token) {
+
+    if (!token) {
+      return;
+    }
+
+    try {
+
+      localStorage.setItem(
+        AUTH_TOKEN_KEY,
+        token
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Could not save auth token:",
+        error
+      );
+
+    }
+
+  }
+
+
+  function clearAuthToken() {
+
+    try {
+
+      localStorage.removeItem(
+        AUTH_TOKEN_KEY
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Could not clear auth token:",
+        error
+      );
+
+    }
+
+  }
+
+
+  function authHeaders(
+    extraHeaders = {}
+  ) {
+
+    const headers = {
+      ...extraHeaders
+    };
+
+    const token =
+      getAuthToken();
+
+    if (token) {
+
+      headers[
+        "Authorization"
+      ] =
+        `Bearer ${token}`;
+
+    }
+
+    return headers;
+
+  }
+
+
+  async function apiFetch(
+    url,
+    options = {}
+  ) {
+
+    const requestOptions = {
+      ...options,
+
+      headers:
+        authHeaders(
+          options.headers || {}
+        )
+    };
+
+
+    /*
+      We intentionally do not depend on
+      cross-site cookies here.
+
+      The signed bearer token is the
+      primary authentication mechanism.
+    */
+
+    const response =
+      await fetch(
+        url,
+        requestOptions
+      );
+
+
+    if (
+      response.status === 401
+    ) {
+
+      clearAuthToken();
+
+    }
+
+
+    return response;
+
+  }
+
+
+  /* ==============================================================
+     THEME
+  ============================================================== */
+
+  const DAY_START_HOUR =
+    7;
+
+  const DAY_END_HOUR =
+    19;
+
 
   function applyTimeBasedTheme() {
 
-    const h = new Date().getHours();
+    const h =
+      new Date().getHours();
 
     document.documentElement.setAttribute(
       "data-theme",
-      (h >= DAY_START_HOUR && h < DAY_END_HOUR)
+      (
+        h >= DAY_START_HOUR &&
+        h < DAY_END_HOUR
+      )
         ? "day"
         : "night"
     );
 
   }
 
+
   applyTimeBasedTheme();
+
 
   setInterval(
     applyTimeBasedTheme,
@@ -1281,9 +1595,12 @@
 
   /* ==============================================================
      ELEMENTS
-  ============================================================= */
+  ============================================================== */
 
-  const $ = (id) => document.getElementById(id);
+  const $ =
+    (id) =>
+      document.getElementById(id);
+
 
   const setupVoiceScreen =
     $("setup-voice-screen");
@@ -1393,28 +1710,44 @@
 
   /* ==============================================================
      INFO
-  ============================================================= */
+  ============================================================== */
 
   infoButton.addEventListener(
     "click",
     () => {
-      infoModal.classList.add("open");
+
+      infoModal.classList.add(
+        "open"
+      );
+
     }
   );
+
 
   infoModalClose.addEventListener(
     "click",
     () => {
-      infoModal.classList.remove("open");
+
+      infoModal.classList.remove(
+        "open"
+      );
+
     }
   );
+
 
   infoModal.addEventListener(
     "click",
     (event) => {
 
-      if (event.target === infoModal) {
-        infoModal.classList.remove("open");
+      if (
+        event.target === infoModal
+      ) {
+
+        infoModal.classList.remove(
+          "open"
+        );
+
       }
 
     }
@@ -1423,7 +1756,7 @@
 
   /* ==============================================================
      AUDIO MIME HELPERS
-  ============================================================= */
+  ============================================================== */
 
   function pickSupportedMimeType() {
 
@@ -1434,30 +1767,46 @@
       "audio/ogg;codecs=opus"
     ];
 
-    for (const type of candidates) {
+
+    for (
+      const type of candidates
+    ) {
 
       if (
         window.MediaRecorder &&
         MediaRecorder.isTypeSupported(type)
       ) {
+
         return type;
+
       }
 
     }
+
 
     return "";
 
   }
 
 
-  function mimeTypeToExtension(mimeType) {
+  function mimeTypeToExtension(
+    mimeType
+  ) {
 
-    if (mimeType.includes("mp4")) {
+    if (
+      mimeType.includes("mp4")
+    ) {
+
       return "m4a";
+
     }
 
-    if (mimeType.includes("ogg")) {
+    if (
+      mimeType.includes("ogg")
+    ) {
+
       return "ogg";
+
     }
 
     return "webm";
@@ -1467,17 +1816,21 @@
 
   /* ==============================================================
      ENTRY SCREEN HELPERS
-  ============================================================= */
+  ============================================================== */
 
   function hideAllEntryScreens() {
 
-    setupVoiceScreen.style.display = "none";
+    setupVoiceScreen.style.display =
+      "none";
 
-    setupPasswordScreen.style.display = "none";
+    setupPasswordScreen.style.display =
+      "none";
 
-    loginScreen.style.display = "none";
+    loginScreen.style.display =
+      "none";
 
-    mainScreen.style.display = "none";
+    mainScreen.style.display =
+      "none";
 
   }
 
@@ -1486,9 +1839,12 @@
 
     hideAllEntryScreens();
 
-    mainScreen.style.display = "flex";
+    mainScreen.style.display =
+      "flex";
 
-    showStage("voice");
+    showStage(
+      "voice"
+    );
 
   }
 
@@ -1497,70 +1853,151 @@
 
     hideAllEntryScreens();
 
-    loginScreen.style.display = "flex";
+    loginScreen.style.display =
+      "flex";
 
-    passwordInput.focus();
+    setTimeout(
+      () => {
+        passwordInput.focus();
+      },
+      0
+    );
 
   }
 
 
   /* ==============================================================
-     STATUS
-  ============================================================= */
+     STATUS / STARTUP
+  ============================================================== */
 
   async function checkStatus() {
 
     try {
 
-      const response = await fetch(
-        `${API}/api/status`,
-        {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store"
-        }
-      );
+      const response =
+        await fetch(
+          `${API}/api/status`,
+          {
+            method: "GET",
+            cache: "no-store"
+          }
+        );
 
-      const data = await response.json();
+
+      const data =
+        await response.json();
+
 
       hideAllEntryScreens();
 
+
       /*
-        IMPORTANT:
         voice_enrolled means:
-        "MIAH's SPEAKING VOICE has been saved."
+        MIAH's SPEAKING VOICE has been saved.
 
         It does NOT mean voice login.
       */
 
-      if (!data.voice_enrolled) {
+      if (
+        !data.voice_enrolled
+      ) {
 
-        setupVoiceScreen.style.display = "flex";
+        setupVoiceScreen.style.display =
+          "flex";
+
         return;
 
       }
 
-      if (!data.password_set) {
 
-        setupPasswordScreen.style.display = "flex";
+      if (
+        !data.password_set
+      ) {
+
+        setupPasswordScreen.style.display =
+          "flex";
+
         return;
 
       }
+
 
       /*
-        A password already exists.
-        The normal login is password-based.
+        If a valid bearer token is already
+        saved, try restoring the session
+        automatically.
+      */
+
+      const token =
+        getAuthToken();
+
+
+      if (token) {
+
+        try {
+
+          const sessionResponse =
+            await apiFetch(
+              `${API}/api/session`,
+              {
+                method: "GET",
+                cache: "no-store"
+              }
+            );
+
+
+          if (
+            sessionResponse.ok
+          ) {
+
+            const sessionData =
+              await sessionResponse.json();
+
+
+            if (
+              sessionData.authenticated
+            ) {
+
+              showMainScreen();
+
+              return;
+
+            }
+
+          }
+
+        } catch (error) {
+
+          console.warn(
+            "Saved token check failed:",
+            error
+          );
+
+        }
+
+      }
+
+
+      /*
+        No valid token:
+        show normal password login.
       */
 
       showLoginScreen();
 
+
     } catch (error) {
 
-      console.error("Status check failed:", error);
+      console.error(
+        "Status check failed:",
+        error
+      );
+
 
       hideAllEntryScreens();
 
-      loginScreen.style.display = "flex";
+      loginScreen.style.display =
+        "flex";
 
       loginError.textContent =
         "Couldn't connect to MIAH.";
@@ -1575,15 +2012,19 @@
 
   /* ==============================================================
      ONE-TIME MIAH SPEAKING VOICE ENROLLMENT
-  ============================================================= */
+  ============================================================== */
 
-  let setupMediaRecorder = null;
+  let setupMediaRecorder =
+    null;
 
-  let setupAudioChunks = [];
+  let setupAudioChunks =
+    [];
 
-  let setupCapturedBlob = null;
+  let setupCapturedBlob =
+    null;
 
-  let setupMicStream = null;
+  let setupMicStream =
+    null;
 
 
   setupVoiceRecordButton.addEventListener(
@@ -1602,9 +2043,10 @@
         try {
 
           setupMicStream =
-            await navigator.mediaDevices.getUserMedia({
-              audio: true
-            });
+            await navigator.mediaDevices
+              .getUserMedia({
+                audio: true
+              });
 
         } catch (error) {
 
@@ -1625,14 +2067,40 @@
           pickSupportedMimeType();
 
 
-        setupMediaRecorder = mimeType
-          ? new MediaRecorder(
-              setupMicStream,
-              { mimeType }
-            )
-          : new MediaRecorder(
-              setupMicStream
+        try {
+
+          setupMediaRecorder =
+            mimeType
+              ? new MediaRecorder(
+                  setupMicStream,
+                  {
+                    mimeType
+                  }
+                )
+              : new MediaRecorder(
+                  setupMicStream
+                );
+
+        } catch (error) {
+
+          console.error(
+            "MediaRecorder error:",
+            error
+          );
+
+          setupMicStream
+            .getTracks()
+            .forEach(
+              (track) =>
+                track.stop()
             );
+
+          setupVoiceStatus.textContent =
+            "This browser cannot record audio.";
+
+          return;
+
+        }
 
 
         setupAudioChunks = [];
@@ -1641,10 +2109,14 @@
         setupMediaRecorder.ondataavailable =
           (event) => {
 
-            if (event.data.size > 0) {
+            if (
+              event.data.size > 0
+            ) {
+
               setupAudioChunks.push(
                 event.data
               );
+
             }
 
           };
@@ -1661,7 +2133,9 @@
             setupCapturedBlob =
               new Blob(
                 setupAudioChunks,
-                { type: actualType }
+                {
+                  type: actualType
+                }
               );
 
 
@@ -1676,12 +2150,15 @@
               "Recording captured. Save it to make this MIAH's speaking voice.";
 
 
-            if (setupMicStream) {
+            if (
+              setupMicStream
+            ) {
 
               setupMicStream
                 .getTracks()
                 .forEach(
-                  (track) => track.stop()
+                  (track) =>
+                    track.stop()
                 );
 
             }
@@ -1707,6 +2184,7 @@
           "none";
 
         return;
+
       }
 
 
@@ -1716,12 +2194,14 @@
 
       if (
         setupMediaRecorder &&
-        setupMediaRecorder.state !== "inactive"
+        setupMediaRecorder.state !==
+          "inactive"
       ) {
 
         setupMediaRecorder.stop();
 
       }
+
 
       setupVoiceRecordButton.textContent =
         "Start Recording";
@@ -1732,13 +2212,17 @@
 
   /* ==============================================================
      RETAKE MIAH VOICE RECORDING
-  ============================================================= */
+  ============================================================== */
 
   setupVoiceRetakeButton.addEventListener(
     "click",
     () => {
 
-      setupCapturedBlob = null;
+      setupCapturedBlob =
+        null;
+
+      setupAudioChunks =
+        [];
 
       setupVoiceSaveButton.style.display =
         "none";
@@ -1755,15 +2239,23 @@
 
   /* ==============================================================
      SAVE MIAH SPEAKING VOICE
-  ============================================================= */
+  ============================================================== */
 
   setupVoiceSaveButton.addEventListener(
     "click",
     async () => {
 
-      if (!setupCapturedBlob) {
+      if (
+        !setupCapturedBlob
+      ) {
+
         return;
+
       }
+
+
+      setupVoiceSaveButton.disabled =
+        true;
 
 
       setupVoiceStatus.textContent =
@@ -1790,12 +2282,18 @@
 
       try {
 
+        /*
+          Voice enrollment is intentionally
+          NOT authenticated.
+
+          It is a one-time setup action.
+        */
+
         const response =
           await fetch(
             `${API}/api/enroll-voice`,
             {
               method: "POST",
-              credentials: "include",
               body: formData
             }
           );
@@ -1805,7 +2303,9 @@
           await response.json();
 
 
-        if (!response.ok) {
+        if (
+          !response.ok
+        ) {
 
           throw new Error(
             data.error ||
@@ -1815,7 +2315,9 @@
         }
 
 
-        if (!data.ok) {
+        if (
+          !data.ok
+        ) {
 
           throw new Error(
             data.error ||
@@ -1828,11 +2330,20 @@
         setupVoiceStatus.textContent =
           "MIAH's speaking voice has been saved.";
 
+
         setupVoiceSaveButton.style.display =
           "none";
 
         setupVoiceRetakeButton.style.display =
           "none";
+
+
+        setupCapturedBlob =
+          null;
+
+
+        setupAudioChunks =
+          [];
 
 
         /*
@@ -1841,6 +2352,7 @@
         */
 
         await checkStatus();
+
 
       } catch (error) {
 
@@ -1853,6 +2365,11 @@
           error.message ||
           "Couldn't save MIAH's voice.";
 
+      } finally {
+
+        setupVoiceSaveButton.disabled =
+          false;
+
       }
 
     }
@@ -1861,7 +2378,7 @@
 
   /* ==============================================================
      PASSWORD SETUP
-  ============================================================= */
+  ============================================================== */
 
   setupPasswordButton.addEventListener(
     "click",
@@ -1878,7 +2395,9 @@
         "";
 
 
-      if (password1.length < 4) {
+      if (
+        password1.length < 4
+      ) {
 
         setupPasswordError.textContent =
           "Password must be at least 4 characters.";
@@ -1888,7 +2407,9 @@
       }
 
 
-      if (password1 !== password2) {
+      if (
+        password1 !== password2
+      ) {
 
         setupPasswordError.textContent =
           "Passwords don't match.";
@@ -1898,7 +2419,8 @@
       }
 
 
-      setupPasswordButton.disabled = true;
+      setupPasswordButton.disabled =
+        true;
 
       setupPasswordButton.textContent =
         "Creating…";
@@ -1915,9 +2437,9 @@
                 "Content-Type":
                   "application/json"
               },
-              credentials: "include",
               body: JSON.stringify({
-                password: password1
+                password:
+                  password1
               })
             }
           );
@@ -1927,7 +2449,9 @@
           await response.json();
 
 
-        if (!response.ok) {
+        if (
+          !response.ok
+        ) {
 
           throw new Error(
             data.error ||
@@ -1937,7 +2461,9 @@
         }
 
 
-        if (!data.ok) {
+        if (
+          !data.ok
+        ) {
 
           throw new Error(
             data.error ||
@@ -1948,9 +2474,26 @@
 
 
         /*
-          The backend should now have created
-          the authenticated session cookie.
+          IMPORTANT:
+          The backend now returns a bearer
+          authentication token.
         */
+
+        if (
+          !data.token
+        ) {
+
+          throw new Error(
+            "MIAH did not return an authentication token."
+          );
+
+        }
+
+
+        saveAuthToken(
+          data.token
+        );
+
 
         setupPasswordInput.value =
           "";
@@ -1960,6 +2503,7 @@
 
 
         showMainScreen();
+
 
       } catch (error) {
 
@@ -1988,7 +2532,7 @@
 
   /* ==============================================================
      PASSWORD LOGIN
-  ============================================================= */
+  ============================================================== */
 
   async function attemptLogin() {
 
@@ -2000,7 +2544,9 @@
       "";
 
 
-    if (!password) {
+    if (
+      !password
+    ) {
 
       loginError.textContent =
         "Enter your password.";
@@ -2010,7 +2556,8 @@
     }
 
 
-    loginButton.disabled = true;
+    loginButton.disabled =
+      true;
 
     loginButton.textContent =
       "Unlocking…";
@@ -2027,7 +2574,6 @@
               "Content-Type":
                 "application/json"
             },
-            credentials: "include",
             body: JSON.stringify({
               password
             })
@@ -2039,7 +2585,9 @@
         await response.json();
 
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
 
         throw new Error(
           data.error ||
@@ -2049,7 +2597,9 @@
       }
 
 
-      if (!data.ok) {
+      if (
+        !data.ok
+      ) {
 
         throw new Error(
           data.error ||
@@ -2059,9 +2609,28 @@
       }
 
 
-      passwordInput.value = "";
+      if (
+        !data.token
+      ) {
+
+        throw new Error(
+          "MIAH did not return an authentication token."
+        );
+
+      }
+
+
+      saveAuthToken(
+        data.token
+      );
+
+
+      passwordInput.value =
+        "";
+
 
       showMainScreen();
+
 
     } catch (error) {
 
@@ -2097,8 +2666,12 @@
     "keydown",
     (event) => {
 
-      if (event.key === "Enter") {
+      if (
+        event.key === "Enter"
+      ) {
+
         attemptLogin();
+
       }
 
     }
@@ -2107,7 +2680,7 @@
 
   /* ==============================================================
      MAIN SCREEN / TABS
-  ============================================================= */
+  ============================================================== */
 
   function showStage(stage) {
 
@@ -2151,13 +2724,15 @@
 
   voiceTab.addEventListener(
     "click",
-    () => showStage("voice")
+    () =>
+      showStage("voice")
   );
 
 
   textTab.addEventListener(
     "click",
-    () => showStage("text")
+    () =>
+      showStage("text")
   );
 
 
@@ -2165,7 +2740,9 @@
     "click",
     () => {
 
-      showStage("music");
+      showStage(
+        "music"
+      );
 
       loadMusic();
 
@@ -2175,7 +2752,7 @@
 
   /* ==============================================================
      CHAT
-  ============================================================= */
+  ============================================================== */
 
   function addChatBubble(
     text,
@@ -2183,7 +2760,9 @@
   ) {
 
     const bubble =
-      document.createElement("div");
+      document.createElement(
+        "div"
+      );
 
 
     bubble.className =
@@ -2211,12 +2790,17 @@
       chatInput.value.trim();
 
 
-    if (!text) {
+    if (
+      !text
+    ) {
+
       return;
+
     }
 
 
-    chatInput.value = "";
+    chatInput.value =
+      "";
 
 
     addChatBubble(
@@ -2237,18 +2821,20 @@
     try {
 
       const response =
-        await fetch(
+        await apiFetch(
           `${API}/api/chat`,
           {
             method: "POST",
+
             headers: {
               "Content-Type":
                 "application/json"
             },
-            credentials: "include",
+
             body: JSON.stringify({
               text,
-              platform: PLATFORM
+              platform:
+                PLATFORM
             })
           }
         );
@@ -2258,18 +2844,22 @@
         await response.json();
 
 
-      if (response.status === 401) {
+      if (
+        response.status === 401
+      ) {
 
         showLoginScreen();
 
         throw new Error(
-          "Your MIAH session expired. Please unlock MIAH again."
+          "Your MIAH access token expired. Please unlock MIAH again."
         );
 
       }
 
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
 
         throw new Error(
           data.error ||
@@ -2286,7 +2876,9 @@
       );
 
 
-      if (data.action) {
+      if (
+        data.action
+      ) {
 
         handleAction(
           data.action
@@ -2309,6 +2901,7 @@
         "thinking"
       );
 
+
       orbStatus.textContent =
         "Tap once to start talking with MIAH";
 
@@ -2327,8 +2920,12 @@
     "keydown",
     (event) => {
 
-      if (event.key === "Enter") {
+      if (
+        event.key === "Enter"
+      ) {
+
         sendMessage();
+
       }
 
     }
@@ -2337,16 +2934,24 @@
 
   /* ==============================================================
      DEVICE ACTIONS
-  ============================================================= */
+  ============================================================== */
 
-  function handleAction(action) {
+  function handleAction(
+    action
+  ) {
 
-    if (!action) {
+    if (
+      !action
+    ) {
+
       return;
+
     }
 
 
-    if (typeof action === "string") {
+    if (
+      typeof action === "string"
+    ) {
 
       try {
 
@@ -2436,9 +3041,11 @@
 
   /* ==============================================================
      VOICE CONVERSATION
+     
      This is YOUR microphone input.
-     It is different from MIAH's saved speaking voice.
-  ============================================================= */
+
+     It is NOT MIAH's speaking voice.
+  ============================================================== */
 
   let conversationRecorder =
     null;
@@ -2455,12 +3062,17 @@
 
   async function startVoiceConversation() {
 
-    if (voiceBusy) {
+    if (
+      voiceBusy
+    ) {
+
       return;
+
     }
 
 
-    voiceBusy = true;
+    voiceBusy =
+      true;
 
 
     micButton.classList.add(
@@ -2494,21 +3106,26 @@
         mimeType
           ? new MediaRecorder(
               conversationStream,
-              { mimeType }
+              {
+                mimeType
+              }
             )
           : new MediaRecorder(
               conversationStream
             );
 
 
-      conversationChunks = [];
+      conversationChunks =
+        [];
 
 
       conversationRecorder
         .ondataavailable =
         (event) => {
 
-          if (event.data.size > 0) {
+          if (
+            event.data.size > 0
+          ) {
 
             conversationChunks.push(
               event.data
@@ -2567,7 +3184,8 @@
         "Couldn't access the microphone.";
 
 
-      voiceBusy = false;
+      voiceBusy =
+        false;
 
     }
 
@@ -2576,12 +3194,21 @@
 
   async function processVoiceRecording() {
 
-    if (!conversationRecorder) {
+    if (
+      !conversationRecorder
+    ) {
+
+      voiceBusy =
+        false;
+
       return;
+
     }
 
 
-    if (conversationStream) {
+    if (
+      conversationStream
+    ) {
 
       conversationStream
         .getTracks()
@@ -2646,11 +3273,10 @@
     try {
 
       const response =
-        await fetch(
+        await apiFetch(
           `${API}/api/transcribe`,
           {
             method: "POST",
-            credentials: "include",
             body: formData
           }
         );
@@ -2660,18 +3286,22 @@
         await response.json();
 
 
-      if (response.status === 401) {
+      if (
+        response.status === 401
+      ) {
 
         showLoginScreen();
 
         throw new Error(
-          "Your MIAH session expired. Please unlock MIAH again."
+          "Your MIAH access token expired. Please unlock MIAH again."
         );
 
       }
 
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
 
         throw new Error(
           data.error ||
@@ -2682,10 +3312,15 @@
 
 
       const text =
-        (data.text || "").trim();
+        (
+          data.text ||
+          ""
+        ).trim();
 
 
-      if (!text) {
+      if (
+        !text
+      ) {
 
         orbStatus.textContent =
           "I didn't hear anything.";
@@ -2711,6 +3346,12 @@
 
     } catch (error) {
 
+      console.error(
+        "Voice processing error:",
+        error
+      );
+
+
       orbStatus.textContent =
         error.message ||
         "Couldn't understand that.";
@@ -2722,7 +3363,8 @@
       );
 
 
-      voiceBusy = false;
+      voiceBusy =
+        false;
 
 
       conversationRecorder =
@@ -2739,9 +3381,11 @@
 
   /* ==============================================================
      VOICE -> CHAT
-  ============================================================= */
+  ============================================================== */
 
-  async function sendVoiceText(text) {
+  async function sendVoiceText(
+    text
+  ) {
 
     orb.classList.add(
       "thinking"
@@ -2755,18 +3399,20 @@
     try {
 
       const response =
-        await fetch(
+        await apiFetch(
           `${API}/api/chat`,
           {
             method: "POST",
+
             headers: {
               "Content-Type":
                 "application/json"
             },
-            credentials: "include",
+
             body: JSON.stringify({
               text,
-              platform: PLATFORM
+              platform:
+                PLATFORM
             })
           }
         );
@@ -2776,18 +3422,22 @@
         await response.json();
 
 
-      if (response.status === 401) {
+      if (
+        response.status === 401
+      ) {
 
         showLoginScreen();
 
         throw new Error(
-          "Your MIAH session expired. Please unlock MIAH again."
+          "Your MIAH access token expired. Please unlock MIAH again."
         );
 
       }
 
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
 
         throw new Error(
           data.error ||
@@ -2815,7 +3465,9 @@
         voiceLog.scrollHeight;
 
 
-      if (data.action) {
+      if (
+        data.action
+      ) {
 
         handleAction(
           data.action
@@ -2830,6 +3482,12 @@
 
 
     } catch (error) {
+
+      console.error(
+        "Voice chat error:",
+        error
+      );
+
 
       voiceLog.insertAdjacentHTML(
         "beforeend",
@@ -2848,11 +3506,9 @@
         "thinking"
       );
 
-
       orb.classList.remove(
         "speaking"
       );
-
 
       orbStatus.textContent =
         "Tap once to start talking with MIAH";
@@ -2864,11 +3520,15 @@
 
   /* ==============================================================
      ESCAPE HTML
-  ============================================================= */
+  ============================================================== */
 
-  function escapeText(text) {
+  function escapeText(
+    text
+  ) {
 
-    return String(text)
+    return String(
+      text
+    )
       .replace(
         /&/g,
         "&amp;"
@@ -2895,11 +3555,14 @@
 
   /* ==============================================================
      MIAH SPEAKING
-     IMPORTANT:
-     /api/speak uses the saved MIAH speaking voice on the server.
-  ============================================================= */
+     
+     /api/speak uses the saved MIAH
+     speaking voice on the Render server.
+  ============================================================== */
 
-  async function speakReply(text) {
+  async function speakReply(
+    text
+  ) {
 
     orb.classList.remove(
       "thinking"
@@ -2918,15 +3581,16 @@
     try {
 
       const response =
-        await fetch(
+        await apiFetch(
           `${API}/api/speak`,
           {
             method: "POST",
+
             headers: {
               "Content-Type":
                 "application/json"
             },
-            credentials: "include",
+
             body: JSON.stringify({
               text
             })
@@ -2934,18 +3598,30 @@
         );
 
 
-      if (response.status === 401) {
+      if (
+        response.status === 401
+      ) {
 
         showLoginScreen();
 
         throw new Error(
-          "Your MIAH session expired."
+          "Your MIAH access token expired."
         );
 
       }
 
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
+
+        const errorText =
+          await response.text();
+
+        console.error(
+          "MIAH speech response:",
+          errorText
+        );
 
         throw new Error(
           "Speech unavailable."
@@ -2965,7 +3641,9 @@
 
 
       const audio =
-        new Audio(audioUrl);
+        new Audio(
+          audioUrl
+        );
 
 
       audio.onended =
@@ -3019,8 +3697,9 @@
 
       /*
         Browser speech is only a fallback.
-        Normally /api/speak should return
-        audio generated from MIAH's saved voice.
+
+        Normally the server should return
+        speech generated from MIAH's saved voice.
       */
 
       if (
@@ -3049,6 +3728,7 @@
 
         speechSynthesis.cancel();
 
+
         speechSynthesis.speak(
           utterance
         );
@@ -3072,13 +3752,15 @@
 
   /* ==============================================================
      MIC BUTTON
-  ============================================================= */
+  ============================================================== */
 
   micButton.addEventListener(
     "click",
     () => {
 
-      if (!voiceBusy) {
+      if (
+        !voiceBusy
+      ) {
 
         startVoiceConversation();
 
@@ -3090,12 +3772,15 @@
 
   /* ==============================================================
      MUSIC
-  ============================================================= */
+  ============================================================== */
 
   let currentAudio =
     null;
 
   let currentTrack =
+    null;
+
+  let currentAudioUrl =
     null;
 
 
@@ -3108,10 +3793,10 @@
     try {
 
       const response =
-        await fetch(
+        await apiFetch(
           `${API}/api/music/list`,
           {
-            credentials: "include"
+            method: "GET"
           }
         );
 
@@ -3120,18 +3805,22 @@
         await response.json();
 
 
-      if (response.status === 401) {
+      if (
+        response.status === 401
+      ) {
 
         showLoginScreen();
 
         throw new Error(
-          "Your MIAH session expired."
+          "Your MIAH access token expired."
         );
 
       }
 
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
 
         throw new Error(
           data.error ||
@@ -3145,7 +3834,9 @@
         data.tracks || [];
 
 
-      if (!tracks.length) {
+      if (
+        !tracks.length
+      ) {
 
         musicList.innerHTML = `
           <div class="music-empty">
@@ -3204,9 +3895,13 @@
                 "Unknown track";
 
 
-          row.appendChild(dot);
+          row.appendChild(
+            dot
+          );
 
-          row.appendChild(name);
+          row.appendChild(
+            name
+          );
 
 
           row.addEventListener(
@@ -3241,6 +3936,12 @@
 
     } catch (error) {
 
+      console.error(
+        "Music loading error:",
+        error
+      );
+
+
       musicList.innerHTML = `
         <div class="music-empty">
           Couldn't load music.
@@ -3258,16 +3959,37 @@
     row
   ) {
 
-    if (!filename) {
+    if (
+      !filename
+    ) {
+
       return;
+
     }
 
 
-    if (currentAudio) {
+    if (
+      currentAudio
+    ) {
 
       currentAudio.pause();
 
-      currentAudio = null;
+      currentAudio =
+        null;
+
+    }
+
+
+    if (
+      currentAudioUrl
+    ) {
+
+      URL.revokeObjectURL(
+        currentAudioUrl
+      );
+
+      currentAudioUrl =
+        null;
 
     }
 
@@ -3287,7 +4009,9 @@
       );
 
 
-    if (row) {
+    if (
+      row
+    ) {
 
       row.classList.add(
         "playing"
@@ -3304,44 +4028,120 @@
       displayName;
 
 
+    playerPlayButton.textContent =
+      "…";
+
+
     const url =
       `${API}/api/music/file/${encodeURIComponent(
         filename
       )}`;
 
 
-    currentAudio =
-      new Audio(url);
-
-
-    currentAudio.addEventListener(
-      "timeupdate",
-      updateProgress
-    );
-
-
-    currentAudio.addEventListener(
-      "ended",
-      () => {
-
-        playerPlayButton.textContent =
-          "▶";
-
-        playerProgressFill.style.width =
-          "0%";
-
-      }
-    );
-
-
     try {
 
+      /*
+        Native new Audio(url) cannot attach
+        our Authorization header.
+
+        Therefore fetch the file with the
+        bearer token, then play the Blob.
+      */
+
+      const response =
+        await apiFetch(
+          url,
+          {
+            method: "GET"
+          }
+        );
+
+
+      if (
+        response.status === 401
+      ) {
+
+        showLoginScreen();
+
+        throw new Error(
+          "Your MIAH access token expired."
+        );
+
+      }
+
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          "Couldn't load the track."
+        );
+
+      }
+
+
+      const blob =
+        await response.blob();
+
+
+      currentAudioUrl =
+        URL.createObjectURL(
+          blob
+        );
+
+
+      currentAudio =
+        new Audio(
+          currentAudioUrl
+        );
+
+
+      currentAudio.addEventListener(
+        "timeupdate",
+        updateProgress
+      );
+
+
+      currentAudio.addEventListener(
+        "ended",
+        () => {
+
+          playerPlayButton.textContent =
+            "▶";
+
+          playerProgressFill.style.width =
+            "0%";
+
+        }
+      );
+
+
+      currentAudio.addEventListener(
+        "error",
+        () => {
+
+          playerPlayButton.textContent =
+            "▶";
+
+        }
+      );
+
+
       await currentAudio.play();
+
 
       playerPlayButton.textContent =
         "❚❚";
 
-    } catch {
+
+    } catch (error) {
+
+      console.error(
+        "Music playback error:",
+        error
+      );
+
 
       playerPlayButton.textContent =
         "▶";
@@ -3380,12 +4180,18 @@
     "click",
     async () => {
 
-      if (!currentAudio) {
+      if (
+        !currentAudio
+      ) {
+
         return;
+
       }
 
 
-      if (currentAudio.paused) {
+      if (
+        currentAudio.paused
+      ) {
 
         await currentAudio.play();
 
@@ -3407,7 +4213,7 @@
 
   /* ==============================================================
      CAMERA
-  ============================================================= */
+  ============================================================== */
 
   const cameraModal =
     $("camera-modal");
@@ -3483,6 +4289,7 @@
       cameraVideo.srcObject =
         cameraStream;
 
+
     } catch (error) {
 
       console.error(
@@ -3490,7 +4297,9 @@
         error
       );
 
+
       closeCamera();
+
 
       alert(
         "Couldn't access the camera."
@@ -3503,7 +4312,9 @@
 
   function closeCamera() {
 
-    if (cameraStream) {
+    if (
+      cameraStream
+    ) {
 
       cameraStream
         .getTracks()
@@ -3540,8 +4351,12 @@
     "click",
     () => {
 
-      if (!cameraStream) {
+      if (
+        !cameraStream
+      ) {
+
         return;
+
       }
 
 
@@ -3629,8 +4444,12 @@
     "click",
     () => {
 
-      if (!capturedPhoto) {
+      if (
+        !capturedPhoto
+      ) {
+
         return;
+
       }
 
 
@@ -3655,6 +4474,7 @@
 
       link.click();
 
+
       link.remove();
 
 
@@ -3666,9 +4486,11 @@
 
   /* ==============================================================
      INITIAL STATE
-  ============================================================= */
+  ============================================================== */
 
-  showStage("voice");
+  showStage(
+    "voice"
+  );
 
 </script>
 
