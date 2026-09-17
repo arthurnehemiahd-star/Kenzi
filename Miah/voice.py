@@ -1,16 +1,20 @@
-"""Voice in, voice out, and speaker recognition.
+"""
+MIAH — voice input and voice output.
 
-Three separate things live here, deliberately kept apart:
+Three separate capabilities:
 
-  1. Speech-to-text       — Whisper, listens to whoever is talking
-  2. Text-to-speech       — XTTS, always speaks in the OWNER's cloned voice
-  3. Speaker embeddings   — Resemblyzer, recognizes HER voice for login
+    1. Speech-to-text
+       Whisper listens to the user.
 
-The original file conflated (1) and (3) inside the transcribe endpoint,
-which meant every single transcription paid the cost of a Resemblyzer
-pass even during setup — and any Resemblyzer error was swallowed by a
-bare `except: pass`. Here they're separate functions so the endpoint can
-decide what to run and when.
+    2. Text-to-speech
+       XTTS speaks using MIAH's enrolled owner voice.
+
+    3. Speaker embeddings
+       Resemblyzer support retained for compatibility with the
+       existing voice-profile code.
+
+The MIAH owner voice is automatically restored from Supabase when
+the Render filesystem no longer has the local cached WAV.
 """
 
 import os
@@ -21,118 +25,266 @@ import numpy as np
 
 from config import REFERENCE_CLIP_PATH
 
-# ----------------------------------------------------------------------
-# Whisper (speech to text)
-# ----------------------------------------------------------------------
-# Loading the model is expensive (seconds, on CPU), so we load it once
-# per process and reuse it. The original loaded it on every request.
+from supabase_store import (
+    restore_owner_voice_if_needed,
+)
+
+
+# =============================================================================
+# WHISPER — SPEECH TO TEXT
+# =============================================================================
+
 _whisper_model = None
 
 
 def get_whisper_model():
     global _whisper_model
+
     if _whisper_model is None:
+
         import whisper
-        _whisper_model = whisper.load_model("base")
+
+        _whisper_model = (
+            whisper.load_model("base")
+        )
+
     return _whisper_model
 
 
 def transcribe_file(path):
-    """Transcribe an audio file (any ffmpeg-readable format) to text.
-    Returns a plain string, possibly empty."""
+    """
+    Transcribe an audio file into plain text.
+    """
+
     model = get_whisper_model()
-    result = model.transcribe(path)
-    return (result.get("text") or "").strip()
+
+    result = model.transcribe(
+        path
+    )
+
+    return (
+        result.get("text")
+        or ""
+    ).strip()
 
 
-# ----------------------------------------------------------------------
-# XTTS (text to speech, cloned voice)
-# ----------------------------------------------------------------------
-# Same reasoning as Whisper — XTTS is multi-GB and slow to construct.
-# We build it once and reuse it. The original constructed a fresh TTS()
-# object on every /api/speak call, which meant a multi-second model load
-# per reply. That's the single biggest performance fix in this refactor.
+# =============================================================================
+# XTTS — MIAH'S SPEAKING VOICE
+# =============================================================================
+
 _tts_model = None
 
 
 def get_tts_model():
     global _tts_model
+
     if _tts_model is None:
+
         from TTS.api import TTS
-        _tts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
+
+        _tts_model = TTS(
+            "tts_models/multilingual/"
+            "multi-dataset/xtts_v2"
+        )
+
     return _tts_model
 
 
-def synthesize_speech(text, language="en"):
-    """Render `text` in the owner's cloned voice. Returns the path to a
-    temp WAV file. Caller is responsible for deleting it after sending."""
-    if not os.path.exists(REFERENCE_CLIP_PATH):
+def ensure_reference_voice():
+    """
+    Make sure MIAH's owner voice exists locally.
+
+    On Render Free, the local filesystem can disappear after a restart.
+    When that happens, restore the WAV from Supabase.
+    """
+
+    return restore_owner_voice_if_needed(
+        REFERENCE_CLIP_PATH
+    )
+
+
+def synthesize_speech(
+    text,
+    language="en",
+):
+    """
+    Speak `text` using MIAH's enrolled voice.
+
+    Returns the path to a temporary WAV file.
+    """
+
+    if not ensure_reference_voice():
+
         raise FileNotFoundError(
-            "No voice enrolled yet — enroll a reference clip first."
+            "No MIAH voice is enrolled yet."
         )
 
     tts = get_tts_model()
-    fd, output_path = tempfile.mkstemp(suffix=".wav", prefix="miah_reply_")
+
+    fd, output_path = (
+        tempfile.mkstemp(
+            suffix=".wav",
+            prefix="miah_reply_",
+        )
+    )
+
     os.close(fd)
 
-    tts.tts_to_file(
-        text=text,
-        speaker_wav=REFERENCE_CLIP_PATH,
-        language=language,
-        file_path=output_path,
-    )
+    try:
+
+        tts.tts_to_file(
+            text=text,
+            speaker_wav=REFERENCE_CLIP_PATH,
+            language=language,
+            file_path=output_path,
+        )
+
+    except Exception:
+
+        if os.path.exists(
+            output_path
+        ):
+            os.unlink(
+                output_path
+            )
+
+        raise
+
     return output_path
 
 
-# ----------------------------------------------------------------------
-# Speaker embeddings (Resemblyzer)
-# ----------------------------------------------------------------------
+# =============================================================================
+# SPEAKER EMBEDDINGS
+# =============================================================================
+
 _voice_encoder = None
 
 
 def get_voice_encoder():
     global _voice_encoder
+
     if _voice_encoder is None:
+
         from resemblyzer import VoiceEncoder
-        _voice_encoder = VoiceEncoder()
+
+        _voice_encoder = (
+            VoiceEncoder()
+        )
+
     return _voice_encoder
 
 
 def compute_embedding_from_file(path):
-    """Convert any audio file to a clean mono 16k WAV, then return a
-    speaker embedding as a plain list (JSON-safe).
-
-    The intermediate WAV is written next to the input so ffmpeg can't
-    collide with a same-named file in /tmp; it's deleted in `finally`.
     """
+    Convert browser audio to clean mono 16 kHz WAV and compute
+    a speaker embedding.
+    """
+
     from resemblyzer import preprocess_wav
 
-    wav_path = path + ".resemblyzer.wav"
+    wav_path = (
+        path
+        + ".resemblyzer.wav"
+    )
+
     subprocess.run(
-        ["ffmpeg", "-y", "-i", path, "-ar", "16000", "-ac", "1", wav_path],
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            path,
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            wav_path,
+        ],
         check=True,
         capture_output=True,
     )
+
     try:
-        wav = preprocess_wav(wav_path)
-        embedding = get_voice_encoder().embed_utterance(wav)
+
+        wav = preprocess_wav(
+            wav_path
+        )
+
+        embedding = (
+            get_voice_encoder()
+            .embed_utterance(wav)
+        )
+
         return embedding.tolist()
+
     finally:
-        if os.path.exists(wav_path):
-            os.unlink(wav_path)
+
+        if os.path.exists(
+            wav_path
+        ):
+            os.unlink(
+                wav_path
+            )
 
 
-def cosine_similarity(a, b):
-    a, b = np.asarray(a, dtype=np.float32), np.asarray(b, dtype=np.float32)
-    denom = (np.linalg.norm(a) * np.linalg.norm(b)) + 1e-8
-    return float(np.dot(a, b) / denom)
+def cosine_similarity(
+    a,
+    b,
+):
+    a = np.asarray(
+        a,
+        dtype=np.float32,
+    )
+
+    b = np.asarray(
+        b,
+        dtype=np.float32,
+    )
+
+    denominator = (
+        np.linalg.norm(a)
+        * np.linalg.norm(b)
+    ) + 1e-8
+
+    return float(
+        np.dot(a, b)
+        / denominator
+    )
 
 
-def convert_to_reference_wav(input_path, output_path):
-    """Convert a browser-recorded clip (webm/mp4/ogg, varies by device)
-    into the clean mono 22.05k WAV that XTTS expects as a reference."""
+# =============================================================================
+# AUDIO CONVERSION
+# =============================================================================
+
+def convert_to_reference_wav(
+    input_path,
+    output_path,
+):
+    """
+    Convert browser-recorded audio into the WAV format XTTS expects.
+    """
+
+    parent = os.path.dirname(
+        output_path
+    )
+
+    if parent:
+        os.makedirs(
+            parent,
+            exist_ok=True,
+        )
+
     subprocess.run(
-        ["ffmpeg", "-y", "-i", input_path, "-ar", "22050", "-ac", "1", output_path],
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            input_path,
+            "-ar",
+            "22050",
+            "-ac",
+            "1",
+            output_path,
+        ],
         check=True,
         capture_output=True,
     )
