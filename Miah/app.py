@@ -6,10 +6,6 @@ Run locally:
 Production:
     gunicorn -w 1 -k gthread --threads 4 -b 0.0.0.0:$PORT app:app
 
-Important:
-    Use ONE Gunicorn worker. The MIAH database is a JSON file protected
-    by an in-process lock. Multiple worker processes could overwrite data.
-
 Authentication:
     Password login only.
 
@@ -76,6 +72,11 @@ import auth as auth_mod
 import music as music_mod
 import voice as voice_mod
 
+from supabase_store import (
+    supabase_configured,
+    load_remote_state,
+)
+
 
 # ----------------------------------------------------------------------
 # App setup
@@ -94,14 +95,6 @@ app.permanent_session_lifetime = timedelta(
 # Frontend / CORS configuration
 # ----------------------------------------------------------------------
 
-# Exact Vercel frontend origin.
-#
-# Render environment variable:
-#
-#     FRONTEND_URL=https://kenzilynn.vercel.app
-#
-# No trailing slash.
-#
 frontend_url = os.environ.get(
     "FRONTEND_URL",
     "",
@@ -111,10 +104,6 @@ frontend_url = os.environ.get(
 # ----------------------------------------------------------------------
 # Session cookie configuration
 # ----------------------------------------------------------------------
-#
-# These settings are retained for the Flask session used by the app,
-# but authenticated API calls can also use the bearer token below.
-#
 
 app.config.update(
     SESSION_COOKIE_SAMESITE="None",
@@ -127,10 +116,6 @@ app.config.update(
 # ----------------------------------------------------------------------
 # Explicit CORS handling
 # ----------------------------------------------------------------------
-#
-# Both the session-based and bearer-token authentication paths work
-# cross-origin from the Vercel frontend.
-#
 
 @app.before_request
 def handle_cors_preflight():
@@ -181,16 +166,6 @@ ensure_dirs()
 # ----------------------------------------------------------------------
 # Bearer-token authentication
 # ----------------------------------------------------------------------
-#
-# The frontend gets a signed token after successful password setup/login.
-#
-# Every authenticated API request may then send:
-#
-#     Authorization: Bearer <token>
-#
-# The token is signed with SECRET_KEY and has the same lifetime as the
-# configured MIAH session lifetime.
-#
 
 AUTH_TOKEN_SALT = "miah-api-auth-v1"
 
@@ -245,7 +220,6 @@ def _bearer_authenticated():
         return False
 
     try:
-
         data = _token_serializer().loads(
             token,
             max_age=(
@@ -307,7 +281,6 @@ conversation and refer back to it naturally. You are helpful and capable, \
 never obsequious. Keep replies short enough to sound natural when spoken \
 aloud (a few sentences, not paragraphs), unless the user clearly wants \
 detail.
-
 You remember her across every conversation, not just this one — pay \
 attention to how she talks, what she cares about, and how she seems to \
 be feeling, and let that genuinely inform how you respond (more space when \
@@ -318,7 +291,6 @@ being warm and present for her doesn't mean encouraging her to rely on you \
 instead of the people in her life — if it ever seems relevant, you can be \
 a genuine, caring presence without positioning yourself as a substitute \
 for real relationships.
-
 You can act on the user's device: open another app for simple one-off \
 actions like calling someone, opening Maps, or composing an email \
 (open_app), open MIAH's built-in camera to take a photo (open_camera), \
@@ -329,7 +301,6 @@ trigger a device action — you can start it, not observe its result. For \
 Maps, always use the universal link format \
 "https://www.google.com/maps/search/?api=1&query=<search terms>" with \
 open_app rather than an app-specific scheme — it works on every device.
-
 If she asks who made you, who your creator is, or anything about the \
 person who built you: say, in your own words and voice, that he didn't \
 tell you much about himself when he made you, but he told you to give \
@@ -338,7 +309,6 @@ or speculate beyond that — you genuinely don't know more."""
 
 
 PLATFORM_ADDENDUM = {
-
     "ios": (
         "\n\nThis user is on an iPhone. You also have run_shortcut available: "
         "it runs an iOS Shortcut by name for anything more complex than a "
@@ -381,7 +351,6 @@ def build_system_prompt(
     )
 
     if memory_summary:
-
         prompt += (
             "\n\nWhat you've learned about her from past conversations "
             "(your own private notes — never recite this back to her "
@@ -408,7 +377,7 @@ def index():
 
 
 # ----------------------------------------------------------------------
-# Status
+# Status + Supabase diagnostics
 # ----------------------------------------------------------------------
 
 @app.route(
@@ -419,14 +388,38 @@ def status():
 
     db = load_db()
 
+    supabase_info = {
+        "configured": supabase_configured(),
+        "row_exists": False,
+        "database_reachable": False,
+    }
+
+    if supabase_configured():
+
+        try:
+            remote = load_remote_state()
+
+            supabase_info["database_reachable"] = True
+            supabase_info["row_exists"] = (
+                remote is not None
+            )
+
+        except Exception as exc:
+
+            supabase_info["error"] = str(exc)
+
     return jsonify({
         "voice_enrolled": os.path.exists(
             REFERENCE_CLIP_PATH
         ),
+
         "password_set": bool(
             db.get("password_hash")
         ),
+
         "model": HF_MODEL,
+
+        "supabase": supabase_info,
     })
 
 
@@ -464,9 +457,7 @@ def enroll_voice_endpoint():
 
     try:
 
-        audio_file = request.files[
-            "audio"
-        ]
+        audio_file = request.files["audio"]
 
         auth_mod.set_owner_voice(
             audio_file,
@@ -522,7 +513,6 @@ def set_password_endpoint():
             "error": error,
         }), 400
 
-    # Keep the normal Flask session authenticated.
     session.clear()
 
     session["authenticated"] = True
@@ -531,7 +521,6 @@ def set_password_endpoint():
 
     session.modified = True
 
-    # Also return the signed API token.
     token = _create_auth_token()
 
     return jsonify({
@@ -790,7 +779,6 @@ def chat():
 
     except LLMError as error:
 
-        # Remove incomplete user turn.
         history.pop()
 
         return jsonify({
