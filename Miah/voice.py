@@ -1,4 +1,4 @@
-```python
+
 """
 MIAH — voice input and voice output.
 
@@ -307,4 +307,4 @@ def convert_to_reference_wav(
         check=True,
         capture_output=True,
     )
-```
+
