@@ -1920,7 +1920,19 @@
     ></div>
 
 
-    <script>
+    
+<script>
+window.addEventListener("error", function(event) {
+    document.body.innerHTML =
+        '<div style="padding:30px;font-family:Arial;color:white;background:#0A0E17;min-height:100vh">' +
+        '<h2>MIAH JavaScript Error</h2>' +
+        '<pre style="white-space:pre-wrap;color:#ff8080">' +
+        (event.error ? event.error.stack : event.message) +
+        '</pre></div>';
+});
+</script>
+
+<script>
 
         /* ============================================================
            MIAH FRONTEND
