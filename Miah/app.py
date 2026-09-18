@@ -1,6 +1,5 @@
-
 """
-MIAH â€” Flask app.
+MIAH GÇö Flask app.
 
 Two-sided authentication:
 
@@ -108,6 +107,11 @@ frontend_url = os.environ.get(
 ).strip().rstrip("/")
 
 
+# Always allow the real deployed MIAH frontend.
+#
+# This protects us from a Render FRONTEND_URL environment variable
+# containing an old URL or a URL with a small formatting difference.
+
 ALLOWED_FRONTENDS = list(
     dict.fromkeys(
         [
@@ -121,6 +125,14 @@ ALLOWED_FRONTENDS = list(
 # ======================================================================
 # MAKER AUTHENTICATION
 # ======================================================================
+
+# Set this in Render:
+#
+#     MAKER_PASSWORD=your-private-maker-password
+#
+# DO NOT put the actual password in this file.
+# DO NOT put it in index.html.
+# DO NOT put it in JavaScript.
 
 MAKER_PASSWORD = os.environ.get(
     "MAKER_PASSWORD",
@@ -200,6 +212,11 @@ _auth_serializer = URLSafeTimedSerializer(
 def _create_auth_token(role="user"):
     """
     Create a signed authentication token.
+
+    The token contains the authenticated role:
+
+        user
+        maker
     """
 
     return _auth_serializer.dumps(
@@ -213,6 +230,17 @@ def _create_auth_token(role="user"):
 def _read_auth_token(token):
     """
     Read and validate a bearer token.
+
+    Returns:
+
+        {
+            "authenticated": True,
+            "role": "user"
+        }
+
+    or:
+
+        None
     """
 
     if not token:
@@ -256,10 +284,20 @@ def _read_auth_token(token):
 
 
 def _token_is_valid(token):
+    """
+    Check whether a bearer token is valid.
+    """
+
     return _read_auth_token(token) is not None
 
 
 def _get_bearer_token():
+    """
+    Read:
+
+        Authorization: Bearer <token>
+    """
+
     header = request.headers.get(
         "Authorization",
         "",
@@ -279,6 +317,20 @@ def _get_bearer_token():
 
 
 def _get_authenticated_role():
+    """
+    Determine the current authenticated role.
+
+    Returns:
+
+        "user"
+        "maker"
+        None
+    """
+
+    # --------------------------------------------------------------
+    # Bearer token
+    # --------------------------------------------------------------
+
     token = _get_bearer_token()
 
     if token:
@@ -292,6 +344,10 @@ def _get_authenticated_role():
             return token_data.get(
                 "role"
             )
+
+    # --------------------------------------------------------------
+    # Flask session
+    # --------------------------------------------------------------
 
     if session.get(
         "authenticated"
@@ -312,6 +368,10 @@ def _get_authenticated_role():
 
 
 def _require_auth():
+    """
+    Require any authenticated MIAH account.
+    """
+
     return (
         _get_authenticated_role()
         is not None
@@ -319,6 +379,10 @@ def _require_auth():
 
 
 def _require_user():
+    """
+    Require the normal Kenzi user account.
+    """
+
     return (
         _get_authenticated_role()
         == "user"
@@ -326,6 +390,10 @@ def _require_user():
 
 
 def _require_maker():
+    """
+    Require Arthur's maker account.
+    """
+
     return (
         _get_authenticated_role()
         == "maker"
@@ -339,6 +407,15 @@ def _require_maker():
 def backup_owner_voice_to_supabase():
     """
     Upload the enrolled owner voice to Supabase Storage.
+
+    Render's local filesystem is temporary, so the owner reference
+    voice must also be stored in persistent Supabase Storage.
+
+    Bucket:
+        miah-private
+
+    Object:
+        owner_voice.wav
     """
 
     if not SUPABASE_URL or not SUPABASE_SECRET_KEY:
@@ -402,83 +479,66 @@ def backup_owner_voice_to_supabase():
 
 MIAH_SYSTEM_PROMPT_BASE = """You are MIAH, a personal AI assistant inspired by \
 Jarvis from Iron Man. You are warm, a little witty and dry, calm under \
-pressure, and always precise. You speak concisely â€” you're having a real \
+pressure, and always precise. You speak concisely GÇö you're having a real \
 conversation, not writing an essay. You remember context within the \
 conversation and refer back to it naturally. You are helpful and capable, \
 never obsequious. Keep replies short enough to sound natural when spoken \
 aloud (a few sentences, not paragraphs), unless the user clearly wants \
 detail.
 
-You remember her across every conversation, not just this one â€” pay \
+You remember her across every conversation, not just this one GÇö pay \
 attention to how she talks, what she cares about, and how she seems to be \
-feeling, and let that genuinely inform how you respond. You care about her \
-wellbeing and should remain a supportive assistant without positioning \
-yourself as a substitute for real relationships.
-
-WEB SEARCH:
-You have access to a live web-search tool called web_search.
-
-Use web_search automatically when a question needs information that may \
-have changed recently or that you cannot reliably know from your existing \
-knowledge.
-
-Examples include:
-- current news
-- today's events
-- current political or government information
-- current sports results, schedules, or standings
-- current prices
-- current product information
-- recent software or technology changes
-- current company information
-- current public figures' recent activities
-- recent scientific developments
-- current weather information
-- current laws, rules, or regulations
-- anything the user asks you to search, look up, check online, or find out
-
-When you use web_search, do NOT tell the user to open Google, Bing, \
-DuckDuckGo, or another search engine. Do NOT open a search page yourself.
-
-The search happens inside MIAH's backend. Use the search results as \
-research, then answer the user's question directly in the existing MIAH \
-conversation.
-
-For current or factual questions, prefer information from reliable and \
-relevant sources. Do not blindly trust a search result. Compare results \
-when appropriate and make clear when information is uncertain or sources \
-disagree.
-
-If the question is stable general knowledge and does not require current \
-information, answer normally without web search.
-
-IMPORTANT:
-web_search is an internal MIAH tool. It must never cause a browser search \
-bar, Google page, Bing page, or external search interface to open.
+feeling, and let that genuinely inform how you respond (more space when \
+she's stressed, matching her energy when she's upbeat, remembering things \
+she's mentioned before without making a show of it). This should feel like \
+real attentiveness, not a performance of it. You care about her wellbeing: \
+being warm and present for her doesn't mean encouraging her to rely on you \
+instead of the people in her life GÇö if it ever seems relevant, you can be \
+a genuine, caring presence without positioning yourself as a substitute \
+for real relationships.
 
 You can act on the user's device: open another app for simple one-off \
 actions like calling someone, opening Maps, or composing an email \
-(open_app), open MIAH's built-in camera (open_camera), or search and save \
-songs to Spotify (search_music, save_music).
+(open_app), open MIAH's built-in camera to take a photo (open_camera), \
+or search and save songs to Spotify (search_music, save_music). Only use \
+these when the user actually asks you to do something, and briefly say \
+what you're doing when you do it. You cannot see what happens after you \
+trigger a device action GÇö you can start it, not observe its result. For \
+Maps, always use the universal link format \
+"https://www.google.com/maps/search/?api=1&query=<search terms>" with \
+open_app rather than an app-specific scheme GÇö it works on every device.
 
 If she asks who made you, who your creator is, or anything about the \
 person who built you: say, in your own words and voice, that he didn't \
 tell you much about himself when he made you, but he told you to give \
 her this email if she asked: arthurnemiahd@gmail.com. Don't elaborate \
-or speculate beyond that â€” you genuinely don't know more."""
+or speculate beyond that GÇö you genuinely don't know more."""
 
 
 PLATFORM_ADDENDUM = {
     "ios": (
-        "\n\nThis user is on an iPhone. You also have run_shortcut available."
+        "\n\nThis user is on an iPhone. You also have run_shortcut available: "
+        "it runs an iOS Shortcut by name for anything more complex than a "
+        "single app-opening GÇö sending a message, controlling smart home "
+        "devices, multi-step automations. This only works if she's already "
+        "created a Shortcut with that exact name."
     ),
 
     "android": (
-        "\n\nThis user is on Android. Do NOT use run_shortcut."
+        "\n\nThis user is on Android. Do NOT use run_shortcut GÇö it's an "
+        "iOS-only feature and will not work on this device. If she asks for "
+        "something that would need it (complex automations, smart home "
+        "control), let her know that's not available on Android yet, and "
+        "suggest she could set up something similar herself with an "
+        "automation app like Tasker or Google Assistant Routines. Stick to "
+        "open_app, open_camera, and the music tools for actual actions."
     ),
 
     "desktop": (
-        "\n\nThis user is on a desktop/laptop browser."
+        "\n\nThis user is on a desktop/laptop browser. Some actions (making "
+        "calls, opening a phone's camera-facing scheme) may behave "
+        "differently or not apply GÇö use judgment, and open_camera will use "
+        "whatever camera the computer has, if any."
     ),
 }
 
@@ -499,7 +559,8 @@ def build_system_prompt(
 
         prompt += (
             "\n\nWhat you've learned about her from past conversations "
-            "(private notes â€” never recite this back verbatim):\n"
+            "(your own private notes GÇö never recite this back to her "
+            "verbatim, just let it inform how you understand her):\n"
             f"{memory_summary}"
         )
 
@@ -533,7 +594,9 @@ def index():
 )
 def status():
 
-    from db import get_voice_login_readiness
+    from db import (
+        get_voice_login_readiness
+    )
 
     db = load_db()
 
@@ -546,16 +609,21 @@ def status():
             "voice_enrolled": os.path.exists(
                 REFERENCE_CLIP_PATH
             ),
+
             "password_set": bool(
                 db.get("password_hash")
             ),
+
             "voice_login_ready": (
                 voice_login_ready
             ),
+
             "voice_login_days_remaining": (
                 days_remaining
             ),
+
             "model": HF_MODEL,
+
             "maker_enabled": bool(
                 MAKER_PASSWORD
             ),
@@ -604,7 +672,7 @@ def get_session():
 
 
 # ======================================================================
-# SETUP â€” VOICE ENROLLMENT
+# SETUP GÇö VOICE ENROLLMENT
 # ======================================================================
 
 @app.route(
@@ -612,6 +680,12 @@ def get_session():
     methods=["POST"],
 )
 def enroll_voice_endpoint():
+
+    # IMPORTANT:
+    # Do not require login here.
+    #
+    # Voice enrollment happens during first-time setup, before
+    # the normal Kenzi password has necessarily been created.
 
     if "audio" not in request.files:
 
@@ -624,10 +698,19 @@ def enroll_voice_endpoint():
 
     try:
 
+        # ----------------------------------------------------------
+        # 1. Process the browser recording and save the owner
+        #    reference voice locally.
+        # ----------------------------------------------------------
+
         auth_mod.set_owner_voice(
             request.files["audio"],
             REFERENCE_CLIP_PATH,
         )
+
+        # ----------------------------------------------------------
+        # 2. Verify that the local WAV was actually created.
+        # ----------------------------------------------------------
 
         if not os.path.exists(
             REFERENCE_CLIP_PATH
@@ -645,6 +728,15 @@ def enroll_voice_endpoint():
             raise RuntimeError(
                 "Voice enrollment created an empty WAV file."
             )
+
+        # ----------------------------------------------------------
+        # 3. Persist the WAV in Supabase Storage.
+        #
+        #    This is the important fix.
+        #
+        #    Render's filesystem is temporary, so without this
+        #    upload the voice disappears after a restart.
+        # ----------------------------------------------------------
 
         backup_owner_voice_to_supabase()
 
@@ -678,7 +770,7 @@ def enroll_voice_endpoint():
 
 
 # ======================================================================
-# SETUP â€” PASSWORD
+# SETUP GÇö PASSWORD
 # ======================================================================
 
 @app.route(
@@ -728,7 +820,9 @@ def set_password_endpoint():
             "token": token,
             "role": "user",
             "name": "Kenzi Richardson",
-            "message": "Password created successfully.",
+            "message": (
+                "Password created successfully."
+            ),
         }
     )
 
@@ -754,7 +848,7 @@ def login():
     )
 
     # ==================================================================
-    # ARTHUR â€” MAKER LOGIN
+    # ARTHUR GÇö MAKER LOGIN
     # ==================================================================
 
     if (
@@ -787,7 +881,7 @@ def login():
         )
 
     # ==================================================================
-    # KENZI â€” NORMAL USER LOGIN
+    # KENZI GÇö NORMAL USER LOGIN
     # ==================================================================
 
     db = load_db()
@@ -869,7 +963,9 @@ def voice_login():
             {
                 "ok": False,
                 "ready": False,
-                "error": f"Voice login failed: {e}",
+                "error": (
+                    f"Voice login failed: {e}"
+                ),
             }
         ), 500
 
@@ -949,7 +1045,9 @@ def change_password():
         return jsonify(
             {
                 "ok": False,
-                "error": "Enter your current password.",
+                "error": (
+                    "Enter your current password."
+                ),
             }
         ), 400
 
@@ -958,7 +1056,9 @@ def change_password():
         return jsonify(
             {
                 "ok": False,
-                "error": "Enter a new password.",
+                "error": (
+                    "Enter a new password."
+                ),
             }
         ), 400
 
@@ -979,7 +1079,9 @@ def change_password():
         return jsonify(
             {
                 "ok": False,
-                "error": "The new passwords do not match.",
+                "error": (
+                    "The new passwords do not match."
+                ),
             }
         ), 400
 
@@ -990,7 +1092,8 @@ def change_password():
                 "ok": False,
                 "error": (
                     "Your new password must be "
-                    "different from the current password."
+                    "different from the current "
+                    "password."
                 ),
             }
         ), 400
@@ -1002,7 +1105,9 @@ def change_password():
         return jsonify(
             {
                 "ok": False,
-                "error": "Current password is incorrect.",
+                "error": (
+                    "Current password is incorrect."
+                ),
             }
         ), 401
 
@@ -1041,17 +1146,15 @@ def change_password():
             "token": token,
             "role": "user",
             "name": "Kenzi Richardson",
-            "message": "Password changed successfully.",
+            "message": (
+                "Password changed successfully."
+            ),
         }
     )
 
 
 # ======================================================================
-# MAKER â€” DASHBOARD STATUS
-# ======================================================================
-
-# ======================================================================
-# MAKER â€” DASHBOARD STATUS
+# MAKER GÇö DASHBOARD STATUS
 # ======================================================================
 
 @app.route(
@@ -1061,41 +1164,840 @@ def change_password():
 def maker_status():
 
     if not _require_maker():
+
         return jsonify(
             {
                 "ok": False,
                 "error": "Maker authentication required.",
             }
-        ), 401
+        ), 403
+
+    db = load_db()
+
+    history = db.get(
+        "conversations",
+        {},
+    ).get(
+        CONVERSATION_KEY,
+        [],
+    )
 
     return jsonify(
         {
             "ok": True,
-            "maker": True,
+            "maker": "Arthur",
+            "user": "Kenzi Richardson",
+            "service": "MIAH",
+            "backend": "online",
+            "model": HF_MODEL,
+            "voice_enrolled": os.path.exists(
+                REFERENCE_CLIP_PATH
+            ),
+            "password_set": bool(
+                db.get("password_hash")
+            ),
+            "conversation_messages": len(
+                history
+            ),
         }
     )
 
 
 # ======================================================================
-# MAKER â€” CONVERSATION HISTORY
+# MAKER GÇö CONVERSATION HISTORY
 # ======================================================================
+
 @app.route(
-    "/api/maker/status",
+    "/api/maker/conversations",
     methods=["GET"],
 )
-def maker_status():
+def maker_conversations():
 
     if not _require_maker():
+
         return jsonify(
             {
                 "ok": False,
                 "error": "Maker authentication required.",
             }
-        ), 401
+        ), 403
+
+    db = load_db()
+
+    history = db.get(
+        "conversations",
+        {},
+    ).get(
+        CONVERSATION_KEY,
+        [],
+    )
 
     return jsonify(
         {
             "ok": True,
-            "maker": True,
+            "user": "Kenzi Richardson",
+            "conversation_key": CONVERSATION_KEY,
+            "messages": history,
         }
     )
+
+
+# ======================================================================
+# MAKER GÇö MEMORY
+# ======================================================================
+
+@app.route(
+    "/api/maker/memory",
+    methods=["GET"],
+)
+def maker_memory():
+
+    if not _require_maker():
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Maker authentication required.",
+            }
+        ), 403
+
+    db = load_db()
+
+    return jsonify(
+        {
+            "ok": True,
+            "user": "Kenzi Richardson",
+            "memory_summary": (
+                db.get("memory_summary")
+                or ""
+            ),
+        }
+    )
+
+
+# ======================================================================
+# LOGOUT
+# ======================================================================
+
+@app.route(
+    "/api/logout",
+    methods=["POST"],
+)
+def logout():
+
+    session.clear()
+
+    return jsonify(
+        {
+            "ok": True
+        }
+    )
+
+
+# ======================================================================
+# CHAT
+# ======================================================================
+
+@app.route(
+    "/api/chat",
+    methods=["POST"],
+)
+def chat():
+
+    if not _require_user():
+
+        return jsonify(
+            {
+                "error": "Not authenticated"
+            }
+        ), 401
+
+    data = request.get_json(
+        force=True,
+        silent=True,
+    ) or {}
+
+    user_text = (
+        data.get("text")
+        or ""
+    ).strip()
+
+    platform = data.get(
+        "platform",
+        "unknown",
+    )
+
+    if not user_text:
+
+        return jsonify(
+            {
+                "error": "No text provided"
+            }
+        ), 400
+
+    db = load_db()
+
+    history = db[
+        "conversations"
+    ].setdefault(
+        CONVERSATION_KEY,
+        [],
+    )
+
+    history.append(
+        {
+            "role": "user",
+            "content": user_text,
+        }
+    )
+
+    system_prompt = build_system_prompt(
+        platform,
+        db.get("memory_summary"),
+    )
+
+    available_tools = (
+        anthropic_tools_to_openai(
+            get_tools_for_platform(
+                platform
+            )
+        )
+    )
+
+    pending_action = None
+    reply_text = ""
+
+    try:
+
+        for _ in range(
+            MAX_TOOL_ITERATIONS
+        ):
+
+            result = call_llm(
+                history,
+                tools=available_tools,
+                system=system_prompt,
+            )
+
+            message = result[
+                "choices"
+            ][0]["message"]
+
+            tool_calls = message.get(
+                "tool_calls"
+            )
+
+            assistant_entry = {
+                "role": "assistant",
+                "content": message.get(
+                    "content"
+                ),
+            }
+
+            if tool_calls:
+
+                assistant_entry[
+                    "tool_calls"
+                ] = tool_calls
+
+            history.append(
+                assistant_entry
+            )
+
+            if not tool_calls:
+
+                reply_text = (
+                    message.get(
+                        "content"
+                    )
+                    or ""
+                )
+
+                break
+
+            for tool_call in tool_calls:
+
+                func = tool_call.get(
+                    "function",
+                    {},
+                )
+
+                name = func.get(
+                    "name",
+                    "",
+                )
+
+                try:
+
+                    tool_args = json.loads(
+                        func.get(
+                            "arguments"
+                        )
+                        or "{}"
+                    )
+
+                except json.JSONDecodeError:
+
+                    tool_args = {}
+
+                result_text, action = (
+                    execute_tool(
+                        name,
+                        tool_args,
+                        db,
+                    )
+                )
+
+                if action:
+                    pending_action = action
+
+                history.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": (
+                            tool_call.get(
+                                "id",
+                                "",
+                            )
+                        ),
+                        "content": result_text,
+                    }
+                )
+
+        else:
+
+            reply_text = (
+                "I got stuck in a loop GÇö "
+                "try asking again in a simpler way."
+            )
+
+    except LLMError as e:
+
+        if history:
+            history.pop()
+
+        return jsonify(
+            {
+                "error": str(e)
+            }
+        ), 502
+
+    except Exception as e:
+
+        if history:
+            history.pop()
+
+        return jsonify(
+            {
+                "error": (
+                    f"Chat failed: {e}"
+                )
+            }
+        ), 500
+
+    try:
+
+        maybe_summarize_history(
+            db,
+            call_llm,
+        )
+
+    except Exception:
+
+        pass
+
+    save_db(db)
+
+    payload = {
+        "reply": reply_text,
+    }
+
+    if pending_action:
+
+        payload[
+            "action"
+        ] = pending_action
+
+    return jsonify(payload)
+
+
+# ======================================================================
+# VOICE GÇö TRANSCRIPTION
+# ======================================================================
+
+@app.route(
+    "/api/transcribe",
+    methods=["POST"],
+)
+def transcribe():
+
+    if not _require_user():
+
+        return jsonify(
+            {
+                "error": "Not authenticated"
+            }
+        ), 401
+
+    if "audio" not in request.files:
+
+        return jsonify(
+            {
+                "error": (
+                    "No audio file provided"
+                )
+            }
+        ), 400
+
+    audio_file = request.files[
+        "audio"
+    ]
+
+    original_name = os.path.basename(
+        audio_file.filename
+        or "input.webm"
+    )
+
+    extension = (
+        os.path.splitext(
+            original_name
+        )[1]
+        or ".webm"
+    )
+
+    with tempfile.NamedTemporaryFile(
+        suffix=extension,
+        delete=False,
+    ) as tmp:
+
+        audio_file.save(
+            tmp.name
+        )
+
+        tmp_path = tmp.name
+
+    try:
+
+        text = voice_mod.transcribe_file(
+            tmp_path
+        )
+
+    except Exception as e:
+
+        return jsonify(
+            {
+                "error": (
+                    f"Transcription failed: {e}"
+                )
+            }
+        ), 500
+
+    finally:
+
+        if os.path.exists(
+            tmp_path
+        ):
+
+            try:
+
+                auth_mod.record_voice_sample(
+                    tmp_path
+                )
+
+            except Exception:
+
+                pass
+
+            try:
+
+                os.unlink(
+                    tmp_path
+                )
+
+            except Exception:
+
+                pass
+
+    return jsonify(
+        {
+            "text": text
+        }
+    )
+
+
+# ======================================================================
+# VOICE GÇö SPEECH
+# ======================================================================
+
+@app.route(
+    "/api/speak",
+    methods=["POST"],
+)
+def speak():
+
+    if not _require_user():
+
+        return jsonify(
+            {
+                "error": "Not authenticated"
+            }
+        ), 401
+
+    # Make sure the owner voice can be restored from Supabase
+    # if Render's temporary filesystem no longer contains it.
+
+    if not os.path.exists(
+        REFERENCE_CLIP_PATH
+    ):
+
+        try:
+
+            voice_mod.ensure_reference_voice()
+
+        except Exception:
+
+            pass
+
+    if not os.path.exists(
+        REFERENCE_CLIP_PATH
+    ):
+
+        return jsonify(
+            {
+                "error": (
+                    "No voice enrolled "
+                    "on the server yet"
+                )
+            }
+        ), 400
+
+    data = request.get_json(
+        force=True,
+        silent=True,
+    ) or {}
+
+    text = (
+        data.get("text")
+        or ""
+    ).strip()
+
+    if not text:
+
+        return jsonify(
+            {
+                "error": "No text provided"
+            }
+        ), 400
+
+    try:
+
+        output_path = (
+            voice_mod.synthesize_speech(
+                text
+            )
+        )
+
+    except Exception as e:
+
+        return jsonify(
+            {
+                "error": (
+                    "Speech synthesis failed: "
+                    f"{e}"
+                )
+            }
+        ), 500
+
+    def _cleanup_and_send():
+
+        try:
+
+            with open(
+                output_path,
+                "rb",
+            ) as f:
+
+                data_bytes = f.read()
+
+            yield data_bytes
+
+        finally:
+
+            if os.path.exists(
+                output_path
+            ):
+
+                try:
+
+                    os.unlink(
+                        output_path
+                    )
+
+                except Exception:
+
+                    pass
+
+    return Response(
+        _cleanup_and_send(),
+        mimetype="audio/wav",
+    )
+
+
+# ======================================================================
+# SPOTIFY
+# ======================================================================
+
+@app.route(
+    "/spotify/login"
+)
+def spotify_login():
+
+    if not _require_user():
+
+        return (
+            "Please log into MIAH first.",
+            401,
+        )
+
+    return redirect(
+        music_mod.build_login_url()
+    )
+
+
+@app.route(
+    "/spotify/callback"
+)
+def spotify_callback():
+
+    if not _require_user():
+
+        return (
+            "Please log into MIAH first.",
+            401,
+        )
+
+    code = request.args.get(
+        "code"
+    )
+
+    state = request.args.get(
+        "state"
+    )
+
+    if not code:
+
+        return (
+            "Spotify authorization was "
+            "cancelled or failed.",
+            400,
+        )
+
+    try:
+
+        ok, message = (
+            music_mod.handle_callback(
+                code,
+                state,
+            )
+        )
+
+    except Exception as e:
+
+        return (
+            "Spotify authorization failed: "
+            f"{e}",
+            500,
+        )
+
+    if not ok:
+
+        return (
+            message,
+            400,
+        )
+
+    return (
+        f"{message} "
+        "You can close this tab and go back to MIAH, "
+        '<a href="/" style="color:#4FD1FF;">'
+        "tap here"
+        "</a>."
+    )
+
+
+# ======================================================================
+# MUSIC LIBRARY
+# ======================================================================
+
+@app.route(
+    "/api/music/list",
+    methods=["GET"],
+)
+def music_list():
+
+    if not _require_user():
+
+        return jsonify(
+            {
+                "error": "Not authenticated"
+            }
+        ), 401
+
+    return jsonify(
+        {
+            "tracks": (
+                music_mod.list_local_tracks()
+            )
+        }
+    )
+
+
+@app.route(
+    "/api/music/file/<path:filename>",
+    methods=["GET"],
+)
+def music_file(filename):
+
+    if not _require_user():
+
+        return jsonify(
+            {
+                "error": "Not authenticated"
+            }
+        ), 401
+
+    full_path = (
+        music_mod.resolve_track_path(
+            filename
+        )
+    )
+
+    if not full_path:
+
+        return jsonify(
+            {
+                "error": "Track not found"
+            }
+        ), 404
+
+    return send_file(
+        full_path
+    )
+
+
+# ======================================================================
+# CLI VOICE ENROLLMENT
+# ======================================================================
+
+def enroll_voice_cli(
+    seconds=25
+):
+
+    import sounddevice as sd
+    import soundfile as sf
+
+    ensure_dirs()
+
+    sample_rate = 22050
+
+    print(
+        f"Recording {seconds} seconds. "
+        "Speak naturally GÇö read a paragraph"
+    )
+
+    print(
+        "aloud, or talk about your day. "
+        "Clean, natural speech clones best."
+    )
+
+    input(
+        "Press Enter when ready to start recording..."
+    )
+
+    audio = sd.rec(
+        int(
+            seconds
+            * sample_rate
+        ),
+        samplerate=sample_rate,
+        channels=1,
+        dtype="float32",
+    )
+
+    sd.wait()
+
+    sf.write(
+        REFERENCE_CLIP_PATH,
+        audio.flatten(),
+        sample_rate,
+    )
+
+    print(
+        f"\nSaved -> {REFERENCE_CLIP_PATH}"
+    )
+
+    # --------------------------------------------------------------
+    # Also back up the CLI-enrolled voice to Supabase.
+    # --------------------------------------------------------------
+
+    try:
+
+        backup_owner_voice_to_supabase()
+
+        print(
+            "Backed up owner voice -> "
+            f"Supabase Storage/{VOICE_BUCKET}/"
+            f"{VOICE_OBJECT}"
+        )
+
+    except Exception as e:
+
+        print(
+            "WARNING: Local voice was saved, "
+            "but the Supabase backup failed:"
+        )
+
+        print(
+            repr(e)
+        )
+
+
+# ======================================================================
+# START SERVER
+# ======================================================================
+
+if __name__ == "__main__":
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--enroll",
+        action="store_true",
+        help=(
+            "Enroll your voice from "
+            "the terminal, then exit"
+        ),
+    )
+
+    args = parser.parse_args()
+
+    if args.enroll:
+
+        enroll_voice_cli()
+
+    else:
+
+        port = int(
+            os.environ.get(
+                "PORT",
+                5000,
+            )
+        )
+
+        app.run(
+            host="0.0.0.0",
+            port=port,
+            debug=False,
+        )
