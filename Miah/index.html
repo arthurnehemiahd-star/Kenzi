@@ -267,6 +267,15 @@
             margin-top: 10px;
         }
 
+        .secondary-button:hover {
+            background: var(--surface-3);
+        }
+
+        .secondary-button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+
         .auth-message {
             min-height: 22px;
 
@@ -1339,6 +1348,67 @@
 
 
     <!-- ============================================================
+         SETUP: OWNER VOICE
+         ============================================================ -->
+
+    <section
+        id="setup-voice-screen"
+        class="screen center-screen hidden"
+    >
+        <div class="auth-card">
+
+            <div class="auth-logo">M</div>
+
+            <h1>Save your voice</h1>
+
+            <p>
+                MIAH needs to hear your voice once so it can use your
+                saved voice when speaking to you.
+            </p>
+
+            <div
+                id="voice-enrollment-status"
+                class="auth-message"
+                style="color:var(--muted);"
+            >
+                When you're ready, press the button and speak naturally
+                for a few seconds.
+            </div>
+
+            <button
+                id="enroll-voice-button"
+                class="primary-button"
+                type="button"
+            >
+                Start recording
+            </button>
+
+            <button
+                id="save-voice-button"
+                class="secondary-button hidden"
+                type="button"
+            >
+                Save my voice
+            </button>
+
+            <button
+                id="record-again-button"
+                class="secondary-button hidden"
+                type="button"
+            >
+                Record again
+            </button>
+
+            <div
+                id="voice-enrollment-message"
+                class="auth-message"
+            ></div>
+
+        </div>
+    </section>
+
+
+    <!-- ============================================================
          LOGIN
          ============================================================ -->
 
@@ -1942,6 +2012,11 @@
                 "setup-password-screen"
             );
 
+        const setupVoiceScreen =
+            document.getElementById(
+                "setup-voice-screen"
+            );
+
         const loginScreen =
             document.getElementById(
                 "login-screen"
@@ -1951,6 +2026,11 @@
             document.getElementById(
                 "main-screen"
             );
+
+
+        /* ============================================================
+           PASSWORD ELEMENTS
+           ============================================================ */
 
         const setupPassword =
             document.getElementById(
@@ -1972,6 +2052,41 @@
                 "setup-password-message"
             );
 
+
+        /* ============================================================
+           VOICE ENROLLMENT ELEMENTS
+           ============================================================ */
+
+        const voiceEnrollmentStatus =
+            document.getElementById(
+                "voice-enrollment-status"
+            );
+
+        const enrollVoiceButton =
+            document.getElementById(
+                "enroll-voice-button"
+            );
+
+        const saveVoiceButton =
+            document.getElementById(
+                "save-voice-button"
+            );
+
+        const recordAgainButton =
+            document.getElementById(
+                "record-again-button"
+            );
+
+        const voiceEnrollmentMessage =
+            document.getElementById(
+                "voice-enrollment-message"
+            );
+
+
+        /* ============================================================
+           LOGIN ELEMENTS
+           ============================================================ */
+
         const loginPassword =
             document.getElementById(
                 "login-password"
@@ -1986,6 +2101,11 @@
             document.getElementById(
                 "login-message"
             );
+
+
+        /* ============================================================
+           MAIN ELEMENTS
+           ============================================================ */
 
         const messages =
             document.getElementById(
@@ -2154,6 +2274,26 @@
 
         let currentAudio =
             null;
+
+
+        /* ============================================================
+           OWNER VOICE ENROLLMENT STATE
+           ============================================================ */
+
+        let enrollmentStream =
+            null;
+
+        let enrollmentRecorder =
+            null;
+
+        let enrollmentChunks =
+            [];
+
+        let enrollmentBlob =
+            null;
+
+        let enrollmentRecording =
+            false;
 
 
         /* ============================================================
@@ -2327,6 +2467,10 @@
                 "hidden"
             );
 
+            setupVoiceScreen.classList.add(
+                "hidden"
+            );
+
             loginScreen.classList.add(
                 "hidden"
             );
@@ -2338,6 +2482,458 @@
             screen.classList.remove(
                 "hidden"
             );
+        }
+
+
+        /* ============================================================
+           VOICE ENROLLMENT UI
+           ============================================================ */
+
+        function resetVoiceEnrollmentUI() {
+
+            voiceEnrollmentStatus.textContent =
+                "When you're ready, press the button and speak naturally for a few seconds.";
+
+            voiceEnrollmentMessage.textContent =
+                "";
+
+            voiceEnrollmentMessage.style.color =
+                "var(--danger)";
+
+            enrollVoiceButton.classList.remove(
+                "hidden"
+            );
+
+            enrollVoiceButton.disabled =
+                false;
+
+            enrollVoiceButton.textContent =
+                "Start recording";
+
+            saveVoiceButton.classList.add(
+                "hidden"
+            );
+
+            saveVoiceButton.disabled =
+                false;
+
+            saveVoiceButton.textContent =
+                "Save my voice";
+
+            recordAgainButton.classList.add(
+                "hidden"
+            );
+
+            recordAgainButton.disabled =
+                false;
+        }
+
+
+        function openVoiceEnrollment() {
+
+            resetVoiceEnrollmentUI();
+
+            showOnlyScreen(
+                setupVoiceScreen
+            );
+        }
+
+
+        async function startVoiceEnrollment() {
+
+            if (enrollmentRecording) {
+
+                stopVoiceEnrollment();
+
+                return;
+            }
+
+            if (
+                !navigator.mediaDevices ||
+                !navigator.mediaDevices.getUserMedia
+            ) {
+
+                voiceEnrollmentMessage.textContent =
+                    "Microphone access is not available in this browser.";
+
+                return;
+            }
+
+            try {
+
+                enrollmentStream =
+                    await navigator
+                        .mediaDevices
+                        .getUserMedia({
+                            audio: true
+                        });
+
+                enrollmentChunks =
+                    [];
+
+                enrollmentBlob =
+                    null;
+
+                enrollmentRecorder =
+                    new MediaRecorder(
+                        enrollmentStream
+                    );
+
+
+                enrollmentRecorder.ondataavailable =
+                    event => {
+
+                        if (
+                            event.data &&
+                            event.data.size > 0
+                        ) {
+
+                            enrollmentChunks.push(
+                                event.data
+                            );
+                        }
+                    };
+
+
+                enrollmentRecorder.onstop =
+                    () => {
+
+                        if (
+                            enrollmentStream
+                        ) {
+
+                            enrollmentStream
+                                .getTracks()
+                                .forEach(
+                                    track =>
+                                        track.stop()
+                                );
+
+                            enrollmentStream =
+                                null;
+                        }
+
+
+                        enrollmentBlob =
+                            new Blob(
+                                enrollmentChunks,
+                                {
+                                    type:
+                                        enrollmentRecorder.mimeType ||
+                                        "audio/webm"
+                                }
+                            );
+
+
+                        enrollmentRecording =
+                            false;
+
+
+                        enrollVoiceButton.classList.add(
+                            "hidden"
+                        );
+
+                        saveVoiceButton.classList.remove(
+                            "hidden"
+                        );
+
+                        recordAgainButton.classList.remove(
+                            "hidden"
+                        );
+
+
+                        voiceEnrollmentStatus.textContent =
+                            "Recording captured. Save it to permanently enroll your voice.";
+                    };
+
+
+                enrollmentRecorder.start();
+
+                enrollmentRecording =
+                    true;
+
+
+                enrollVoiceButton.textContent =
+                    "Stop recording";
+
+
+                voiceEnrollmentStatus.textContent =
+                    "Recording… speak naturally for a few seconds.";
+
+
+                voiceEnrollmentMessage.textContent =
+                    "";
+
+            } catch (error) {
+
+                console.error(
+                    "Voice enrollment microphone error:",
+                    error
+                );
+
+                voiceEnrollmentMessage.textContent =
+                    "Microphone permission was not available.";
+
+                if (
+                    enrollmentStream
+                ) {
+
+                    enrollmentStream
+                        .getTracks()
+                        .forEach(
+                            track =>
+                                track.stop()
+                        );
+
+                    enrollmentStream =
+                        null;
+                }
+            }
+        }
+
+
+        function stopVoiceEnrollment() {
+
+            if (
+                !enrollmentRecorder ||
+                !enrollmentRecording
+            ) {
+
+                return;
+            }
+
+            enrollmentRecorder.stop();
+        }
+
+
+        function discardVoiceEnrollmentRecording() {
+
+            if (
+                enrollmentRecorder &&
+                enrollmentRecording
+            ) {
+
+                try {
+                    enrollmentRecorder.stop();
+                } catch {}
+            }
+
+
+            enrollmentBlob =
+                null;
+
+            enrollmentChunks =
+                [];
+
+            enrollmentRecording =
+                false;
+
+
+            if (
+                enrollmentStream
+            ) {
+
+                enrollmentStream
+                    .getTracks()
+                    .forEach(
+                        track =>
+                            track.stop()
+                    );
+
+                enrollmentStream =
+                    null;
+            }
+
+
+            resetVoiceEnrollmentUI();
+        }
+
+
+        async function saveVoiceEnrollment() {
+
+            if (!enrollmentBlob) {
+
+                voiceEnrollmentMessage.textContent =
+                    "Please record your voice first.";
+
+                return;
+            }
+
+
+            saveVoiceButton.disabled =
+                true;
+
+            recordAgainButton.disabled =
+                true;
+
+            saveVoiceButton.textContent =
+                "Saving...";
+
+            voiceEnrollmentMessage.textContent =
+                "";
+
+
+            try {
+
+                const formData =
+                    new FormData();
+
+
+                formData.append(
+                    "audio",
+                    enrollmentBlob,
+                    "owner-voice.webm"
+                );
+
+
+                const response =
+                    await apiFetch(
+                        "/api/enroll-voice",
+                        {
+                            method: "POST",
+                            body: formData
+                        }
+                    );
+
+
+                let data =
+                    {};
+
+                try {
+
+                    data =
+                        await response.json();
+
+                } catch {
+
+                    data =
+                        {};
+                }
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.error ||
+                        "MIAH could not save your voice."
+                    );
+                }
+
+
+                enrollmentBlob =
+                    null;
+
+                enrollmentChunks =
+                    [];
+
+
+                voiceEnrollmentStatus.textContent =
+                    "Your voice has been saved.";
+
+
+                voiceEnrollmentMessage.textContent =
+                    "Voice enrollment completed successfully.";
+
+                voiceEnrollmentMessage.style.color =
+                    "var(--success)";
+
+
+                saveVoiceButton.classList.add(
+                    "hidden"
+                );
+
+                recordAgainButton.classList.add(
+                    "hidden"
+                );
+
+                enrollVoiceButton.classList.add(
+                    "hidden"
+                );
+
+
+                showToast(
+                    "Your voice has been securely enrolled."
+                );
+
+
+                /*
+                 * The enrollment screen disappears permanently
+                 * after the backend confirms the voice was saved.
+                 */
+
+                setTimeout(
+                    () => {
+
+                        openMainScreen();
+
+                    },
+                    900
+                );
+
+
+            } catch (error) {
+
+                console.error(
+                    "Voice enrollment error:",
+                    error
+                );
+
+
+                voiceEnrollmentMessage.textContent =
+                    error.message ||
+                    "Could not save your voice.";
+
+                voiceEnrollmentMessage.style.color =
+                    "var(--danger)";
+
+
+                saveVoiceButton.disabled =
+                    false;
+
+                recordAgainButton.disabled =
+                    false;
+
+                saveVoiceButton.textContent =
+                    "Save my voice";
+            }
+        }
+
+
+        /* ============================================================
+           CHECK VOICE ENROLLMENT
+           ============================================================ */
+
+        async function checkVoiceEnrollment() {
+
+            try {
+
+                const response =
+                    await apiFetch(
+                        "/api/status"
+                    );
+
+
+                if (!response.ok) {
+
+                    return null;
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                return data;
+
+            } catch (error) {
+
+                console.error(
+                    "Could not check voice enrollment:",
+                    error
+                );
+
+                return null;
+            }
         }
 
 
@@ -2383,12 +2979,14 @@
                 const token =
                     getToken();
 
+
                 if (token) {
 
                     const sessionResponse =
                         await apiFetch(
                             "/api/session"
                         );
+
 
                     if (
                         sessionResponse.ok
@@ -2399,31 +2997,47 @@
 
 
                         /*
-                         * IMPORTANT:
-                         *
                          * Arthur's maker session must
                          * go to the maker dashboard.
+                         */
+
+                        if (
+                            session.authenticated &&
+                            session.role === "maker"
+                        ) {
+
+                            window.location.href =
+                                "/arthur.html";
+
+                            return;
+                        }
+
+
+                        /*
+                         * Normal Kenzi/MIAH session.
+                         *
+                         * Check whether owner voice
+                         * has already been enrolled.
                          */
 
                         if (
                             session.authenticated
                         ) {
 
+                            const voiceStatus =
+                                await checkVoiceEnrollment();
+
+
                             if (
-                                session.role ===
-                                "maker"
+                                voiceStatus &&
+                                voiceStatus.voice_enrolled === false
                             ) {
 
-                                window.location.href =
-                                    "/arthur.html";
+                                openVoiceEnrollment();
 
                                 return;
                             }
 
-
-                            /*
-                             * Normal Kenzi session.
-                             */
 
                             openMainScreen();
 
@@ -2434,6 +3048,10 @@
                     clearToken();
                 }
 
+
+                /*
+                 * No authenticated session.
+                 */
 
                 if (
                     data.password_set
@@ -2449,6 +3067,7 @@
                         setupPasswordScreen
                     );
                 }
+
 
             } catch (error) {
 
@@ -2487,6 +3106,7 @@
             setupPasswordMessage.textContent =
                 "";
 
+
             if (!password) {
 
                 setupPasswordMessage.textContent =
@@ -2494,6 +3114,7 @@
 
                 return;
             }
+
 
             if (
                 password.length < 4
@@ -2505,6 +3126,7 @@
                 return;
             }
 
+
             if (
                 password !== confirm
             ) {
@@ -2515,11 +3137,13 @@
                 return;
             }
 
+
             setupPasswordButton.disabled =
                 true;
 
             setupPasswordButton.textContent =
                 "Creating...";
+
 
             try {
 
@@ -2542,8 +3166,21 @@
                         }
                     );
 
-                const data =
-                    await response.json();
+
+                let data =
+                    {};
+
+                try {
+
+                    data =
+                        await response.json();
+
+                } catch {
+
+                    data =
+                        {};
+                }
+
 
                 if (!response.ok) {
 
@@ -2553,6 +3190,7 @@
                     );
                 }
 
+
                 if (data.token) {
 
                     setToken(
@@ -2560,17 +3198,24 @@
                     );
                 }
 
+
                 setupPassword.value =
                     "";
 
                 setupPasswordConfirm.value =
                     "";
 
-                openMainScreen();
 
-                showToast(
-                    "MIAH is ready."
-                );
+                /*
+                 * IMPORTANT:
+                 *
+                 * We do NOT open MIAH yet.
+                 *
+                 * The owner must enroll their voice once.
+                 */
+
+                openVoiceEnrollment();
+
 
             } catch (error) {
 
@@ -2605,6 +3250,7 @@
             loginMessage.textContent =
                 "";
 
+
             if (!password) {
 
                 loginMessage.textContent =
@@ -2613,11 +3259,13 @@
                 return;
             }
 
+
             loginButton.disabled =
                 true;
 
             loginButton.textContent =
                 "Unlocking...";
+
 
             try {
 
@@ -2640,8 +3288,20 @@
                         }
                     );
 
-                const data =
-                    await response.json();
+
+                let data =
+                    {};
+
+                try {
+
+                    data =
+                        await response.json();
+
+                } catch {
+
+                    data =
+                        {};
+                }
 
 
                 if (!response.ok) {
@@ -2664,6 +3324,7 @@
                     );
                 }
 
+
                 loginPassword.value =
                     "";
 
@@ -2672,16 +3333,6 @@
                  * ====================================================
                  * ARTHUR MAKER LOGIN
                  * ====================================================
-                 *
-                 * The backend checks the maker password.
-                 *
-                 * We DO NOT put Arthur's password here.
-                 *
-                 * The backend simply tells us:
-                 *
-                 *     role = "maker"
-                 *
-                 * if the maker password was correct.
                  */
 
                 if (
@@ -2697,15 +3348,34 @@
 
                 /*
                  * ====================================================
-                 * NORMAL KENZI LOGIN
+                 * NORMAL MIAH LOGIN
                  * ====================================================
+                 *
+                 * Check whether the owner voice has already
+                 * been enrolled.
                  */
+
+                const voiceStatus =
+                    await checkVoiceEnrollment();
+
+
+                if (
+                    voiceStatus &&
+                    voiceStatus.voice_enrolled === false
+                ) {
+
+                    openVoiceEnrollment();
+
+                    return;
+                }
+
 
                 openMainScreen();
 
                 showToast(
                     "MIAH unlocked."
                 );
+
 
             } catch (error) {
 
@@ -2748,7 +3418,16 @@
                 "Connected"
             );
 
-            chatInput.focus();
+            setTimeout(
+                () => {
+
+                    try {
+                        chatInput.focus();
+                    } catch {}
+
+                },
+                50
+            );
 
             loadMusic();
         }
@@ -2777,6 +3456,7 @@
                 "hidden"
             );
 
+
             document
                 .querySelectorAll(
                     ".nav-button[data-view]"
@@ -2792,10 +3472,12 @@
                     }
                 );
 
+
             const topbarTitle =
                 document.getElementById(
                     "topbar-title"
                 );
+
 
             if (
                 view === "chat"
@@ -2833,6 +3515,7 @@
                 loadMusic();
             }
 
+
             sidebar.classList.remove(
                 "open"
             );
@@ -2852,6 +3535,7 @@
                 "hidden"
             );
 
+
             const row =
                 document.createElement(
                     "div"
@@ -2859,6 +3543,7 @@
 
             row.className =
                 `message-row ${role}`;
+
 
             const avatar =
                 document.createElement(
@@ -2873,6 +3558,7 @@
                     ? "You"
                     : "M";
 
+
             const content =
                 document.createElement(
                     "div"
@@ -2881,10 +3567,12 @@
             content.className =
                 "message-content";
 
+
             content.innerHTML =
                 escapeHtml(
                     text
                 );
+
 
             row.appendChild(
                 avatar
@@ -2894,13 +3582,16 @@
                 content
             );
 
+
             messages.appendChild(
                 row
             );
 
+
             requestAnimationFrame(
                 scrollChatToBottom
             );
+
 
             return content;
         }
@@ -2926,6 +3617,7 @@
             row.id =
                 "thinking-message";
 
+
             const avatar =
                 document.createElement(
                     "div"
@@ -2937,6 +3629,7 @@
             avatar.textContent =
                 "M";
 
+
             const content =
                 document.createElement(
                     "div"
@@ -2944,6 +3637,7 @@
 
             content.className =
                 "message-content";
+
 
             content.innerHTML =
                 `
@@ -2956,6 +3650,7 @@
                     </div>
                 `;
 
+
             row.appendChild(
                 avatar
             );
@@ -2964,9 +3659,11 @@
                 content
             );
 
+
             messages.appendChild(
                 row
             );
+
 
             scrollChatToBottom();
         }
@@ -2978,6 +3675,7 @@
                 document.getElementById(
                     "thinking-message"
                 );
+
 
             if (thinking) {
 
@@ -2998,30 +3696,37 @@
                 String(text || "")
                     .trim();
 
+
             if (!text) {
 
                 return;
             }
+
 
             addMessage(
                 "user",
                 text
             );
 
+
             chatInput.value =
                 "";
 
             resizeTextarea();
 
+
             sendButton.disabled =
                 true;
 
+
             setThinking();
+
 
             try {
 
                 const token =
                     getToken();
+
 
                 if (!token) {
 
@@ -3029,6 +3734,7 @@
                         "Your MIAH session has expired. Please unlock MIAH again."
                     );
                 }
+
 
                 const response =
                     await fetch(
@@ -3053,7 +3759,10 @@
                         }
                     );
 
-                let data = {};
+
+                let data =
+                    {};
+
 
                 try {
 
@@ -3062,8 +3771,10 @@
 
                 } catch {
 
-                    data = {};
+                    data =
+                        {};
                 }
+
 
                 if (!response.ok) {
 
@@ -3085,16 +3796,20 @@
                         return;
                     }
 
+
                     throw new Error(
                         data.error ||
                         `MIAH returned HTTP ${response.status}.`
                     );
                 }
 
+
                 removeThinking();
+
 
                 const reply =
                     data.reply || "";
+
 
                 if (!reply) {
 
@@ -3103,10 +3818,12 @@
                     );
                 }
 
+
                 addMessage(
                     "assistant",
                     reply
                 );
+
 
                 if (data.action) {
 
@@ -3115,28 +3832,34 @@
                     );
                 }
 
+
                 speakMiah(
                     reply
                 );
 
+
             } catch (error) {
 
                 removeThinking();
+
 
                 console.error(
                     "MIAH chat error:",
                     error
                 );
 
+
                 addMessage(
                     "assistant",
                     `Sorry, I couldn't connect to MIAH right now.\n\n${error.message}`
                 );
 
+
                 setConnectionStatus(
                     false,
                     "Connection error"
                 );
+
 
             } finally {
 
@@ -3161,15 +3884,18 @@
                 return;
             }
 
+
             const type =
                 action.type ||
                 action.action ||
                 action.name;
 
+
             if (!type) {
 
                 return;
             }
+
 
             if (
                 type === "open_camera"
@@ -3180,6 +3906,7 @@
                 return;
             }
 
+
             if (
                 type === "open_app" ||
                 type === "open_url"
@@ -3188,6 +3915,7 @@
                 const url =
                     action.url ||
                     action.target;
+
 
                 if (url) {
 
@@ -3200,6 +3928,7 @@
                 return;
             }
 
+
             if (
                 type === "call"
             ) {
@@ -3208,6 +3937,7 @@
                     action.number ||
                     action.phone ||
                     action.target;
+
 
                 if (number) {
 
@@ -3218,6 +3948,7 @@
                 return;
             }
 
+
             if (
                 type === "email"
             ) {
@@ -3225,6 +3956,7 @@
                 const email =
                     action.email ||
                     action.target;
+
 
                 if (email) {
 
@@ -3234,6 +3966,7 @@
 
                 return;
             }
+
 
             if (
                 type === "spotify"
@@ -3256,6 +3989,7 @@
             chatInput.style.height =
                 "auto";
 
+
             chatInput.style.height =
                 Math.min(
                     chatInput.scrollHeight,
@@ -3277,6 +4011,7 @@
                 const token =
                     getToken();
 
+
                 if (!token) {
 
                     browserSpeak(
@@ -3285,6 +4020,7 @@
 
                     return;
                 }
+
 
                 const response =
                     await fetch(
@@ -3306,6 +4042,7 @@
                         }
                     );
 
+
                 if (!response.ok) {
 
                     browserSpeak(
@@ -3315,13 +4052,16 @@
                     return;
                 }
 
+
                 const blob =
                     await response.blob();
+
 
                 const url =
                     URL.createObjectURL(
                         blob
                     );
+
 
                 if (currentAudio) {
 
@@ -3330,10 +4070,12 @@
                     } catch {}
                 }
 
+
                 currentAudio =
                     new Audio(
                         url
                     );
+
 
                 currentAudio.onended =
                     () => {
@@ -3343,7 +4085,9 @@
                         );
                     };
 
+
                 await currentAudio.play();
+
 
             } catch (error) {
 
@@ -3351,6 +4095,7 @@
                     "MIAH voice unavailable:",
                     error
                 );
+
 
                 browserSpeak(
                     text
@@ -3370,14 +4115,17 @@
                 return;
             }
 
+
             try {
 
                 speechSynthesis.cancel();
+
 
                 const utterance =
                     new SpeechSynthesisUtterance(
                         text
                     );
+
 
                 utterance.rate =
                     1.0;
@@ -3385,9 +4133,11 @@
                 utterance.pitch =
                     1.0;
 
+
                 speechSynthesis.speak(
                     utterance
                 );
+
 
             } catch (error) {
 
@@ -3411,6 +4161,7 @@
                 return;
             }
 
+
             if (
                 !navigator.mediaDevices ||
                 !navigator.mediaDevices.getUserMedia
@@ -3423,6 +4174,7 @@
                 return;
             }
 
+
             try {
 
                 const stream =
@@ -3432,12 +4184,16 @@
                             audio: true
                         });
 
-                recordedChunks = [];
+
+                recordedChunks =
+                    [];
+
 
                 mediaRecorder =
                     new MediaRecorder(
                         stream
                     );
+
 
                 mediaRecorder.ondataavailable =
                     event => {
@@ -3453,6 +4209,7 @@
                         }
                     };
 
+
                 mediaRecorder.onstop =
                     async () => {
 
@@ -3463,29 +4220,37 @@
                                     track.stop()
                             );
 
+
                         await processVoiceRecording();
                     };
 
+
                 mediaRecorder.start();
+
 
                 isRecordingVoice =
                     true;
+
 
                 voiceOrb.classList.add(
                     "listening"
                 );
 
+
                 voiceStatus.textContent =
                     "Listening… speak naturally.";
 
+
                 voiceStartButton.textContent =
                     "Stop listening";
+
 
             } catch (error) {
 
                 console.error(
                     error
                 );
+
 
                 showToast(
                     "Microphone permission was not available."
@@ -3504,22 +4269,28 @@
                 return;
             }
 
+
             isRecordingVoice =
                 false;
+
 
             voiceOrb.classList.remove(
                 "listening"
             );
 
+
             voiceOrb.classList.add(
                 "thinking"
             );
 
+
             voiceStatus.textContent =
                 "Processing your voice…";
 
+
             voiceStartButton.textContent =
                 "Start listening";
+
 
             mediaRecorder.stop();
         }
@@ -3539,14 +4310,17 @@
                         }
                     );
 
+
                 const formData =
                     new FormData();
+
 
                 formData.append(
                     "audio",
                     blob,
                     "miah-input.webm"
                 );
+
 
                 const response =
                     await apiFetch(
@@ -3557,8 +4331,10 @@
                         }
                     );
 
+
                 const data =
                     await response.json();
+
 
                 if (!response.ok) {
 
@@ -3568,20 +4344,24 @@
                     );
                 }
 
+
                 const text =
                     (
                         data.text ||
                         ""
                     ).trim();
 
+
                 voiceOrb.classList.remove(
                     "thinking"
                 );
+
 
                 voiceStatus.textContent =
                     text
                         ? `"${text}"`
                         : "I couldn't hear any words.";
+
 
                 if (text) {
 
@@ -3589,10 +4369,12 @@
                         "chat"
                     );
 
+
                     await sendMessage(
                         text
                     );
                 }
+
 
             } catch (error) {
 
@@ -3601,12 +4383,15 @@
                     error
                 );
 
+
                 voiceOrb.classList.remove(
                     "thinking"
                 );
 
+
                 voiceStatus.textContent =
                     "Voice processing failed.";
+
 
                 showToast(
                     error.message ||
@@ -3629,12 +4414,14 @@
                 return;
             }
 
+
             musicList.innerHTML =
                 `
                     <div style="color:var(--muted);">
                         Loading music...
                     </div>
                 `;
+
 
             try {
 
@@ -3643,8 +4430,10 @@
                         "/api/music/list"
                     );
 
+
                 const data =
                     await response.json();
+
 
                 if (!response.ok) {
 
@@ -3654,8 +4443,10 @@
                     );
                 }
 
+
                 const tracks =
                     data.tracks || [];
+
 
                 if (!tracks.length) {
 
@@ -3669,8 +4460,10 @@
                     return;
                 }
 
+
                 musicList.innerHTML =
                     "";
+
 
                 tracks.forEach(
                     track => {
@@ -3685,6 +4478,7 @@
                                     "Unknown track"
                                 );
 
+
                         const filename =
                             typeof track === "string"
                                 ? track
@@ -3693,13 +4487,16 @@
                                     track.name
                                 );
 
+
                         const item =
                             document.createElement(
                                 "div"
                             );
 
+
                         item.className =
                             "track";
+
 
                         item.innerHTML =
                             `
@@ -3715,6 +4512,7 @@
                                     ▶
                                 </div>
                             `;
+
 
                         item.addEventListener(
                             "click",
@@ -3732,11 +4530,13 @@
                             }
                         );
 
+
                         musicList.appendChild(
                             item
                         );
                     }
                 );
+
 
             } catch (error) {
 
@@ -3744,6 +4544,7 @@
                     "Music error:",
                     error
                 );
+
 
                 musicList.innerHTML =
                     `
@@ -3762,10 +4563,12 @@
             const token =
                 getToken();
 
+
             if (!token) {
 
                 return;
             }
+
 
             apiFetch(
                 `/api/music/file/${encodeURIComponent(filename)}`
@@ -3780,6 +4583,7 @@
                             );
                         }
 
+
                         return response.blob();
                     }
                 )
@@ -3791,6 +4595,7 @@
                                 blob
                             );
 
+
                         if (currentAudio) {
 
                             try {
@@ -3798,12 +4603,15 @@
                             } catch {}
                         }
 
+
                         currentAudio =
                             new Audio(
                                 url
                             );
 
+
                         currentAudio.play();
+
 
                         showToast(
                             `Playing ${filename}`
@@ -3817,6 +4625,7 @@
                         console.error(
                             error
                         );
+
 
                         showToast(
                             "Could not play this track."
@@ -3836,6 +4645,7 @@
                 "hidden"
             );
 
+
             try {
 
                 if (
@@ -3848,6 +4658,7 @@
                     );
                 }
 
+
                 mediaStream =
                     await navigator
                         .mediaDevices
@@ -3856,14 +4667,17 @@
                             audio: false
                         });
 
+
                 cameraVideo.srcObject =
                     mediaStream;
+
 
             } catch (error) {
 
                 console.error(
                     error
                 );
+
 
                 showToast(
                     "Could not open the camera."
@@ -3885,12 +4699,15 @@
                             track.stop()
                     );
 
+
                 mediaStream =
                     null;
             }
 
+
             cameraVideo.srcObject =
                 null;
+
 
             cameraModal.classList.add(
                 "hidden"
@@ -3911,16 +4728,20 @@
                 return;
             }
 
+
             cameraCanvas.width =
                 cameraVideo.videoWidth;
 
+
             cameraCanvas.height =
                 cameraVideo.videoHeight;
+
 
             const context =
                 cameraCanvas.getContext(
                     "2d"
                 );
+
 
             context.drawImage(
                 cameraVideo,
@@ -3930,6 +4751,7 @@
                 cameraCanvas.height
             );
 
+
             cameraCanvas.toBlob(
                 blob => {
 
@@ -3938,29 +4760,37 @@
                         return;
                     }
 
+
                     const url =
                         URL.createObjectURL(
                             blob
                         );
+
 
                     const link =
                         document.createElement(
                             "a"
                         );
 
+
                     link.href =
                         url;
 
+
                     link.download =
                         `miah-photo-${Date.now()}.jpg`;
+
 
                     document.body.appendChild(
                         link
                     );
 
+
                     link.click();
 
+
                     link.remove();
+
 
                     setTimeout(
                         () =>
@@ -3970,9 +4800,12 @@
                         1000
                     );
 
+
                     showToast(
                         "Photo captured."
                     );
+
+
                 },
                 "image/jpeg",
                 0.92
@@ -3995,6 +4828,7 @@
                 return;
             }
 
+
             currentPasswordInput.value =
                 "";
 
@@ -4004,15 +4838,19 @@
             confirmNewPasswordInput.value =
                 "";
 
+
             changePasswordMessage.textContent =
                 "";
+
 
             changePasswordMessage.className =
                 "password-message";
 
+
             changePasswordModal.classList.remove(
                 "hidden"
             );
+
 
             setTimeout(
                 () => {
@@ -4020,6 +4858,7 @@
                 },
                 50
             );
+
 
             sidebar.classList.remove(
                 "open"
@@ -4033,6 +4872,7 @@
                 "hidden"
             );
 
+
             currentPasswordInput.value =
                 "";
 
@@ -4042,14 +4882,18 @@
             confirmNewPasswordInput.value =
                 "";
 
+
             changePasswordMessage.textContent =
                 "";
+
 
             changePasswordMessage.className =
                 "password-message";
 
+
             saveNewPasswordButton.disabled =
                 false;
+
 
             saveNewPasswordButton.textContent =
                 "Change password";
@@ -4067,11 +4911,14 @@
             const confirmNewPassword =
                 confirmNewPasswordInput.value;
 
+
             changePasswordMessage.textContent =
                 "";
 
+
             changePasswordMessage.className =
                 "password-message";
+
 
             if (!currentPassword) {
 
@@ -4082,10 +4929,12 @@
                     "error"
                 );
 
+
                 currentPasswordInput.focus();
 
                 return;
             }
+
 
             if (!newPassword) {
 
@@ -4096,10 +4945,12 @@
                     "error"
                 );
 
+
                 newPasswordInput.focus();
 
                 return;
             }
+
 
             if (
                 newPassword.length < 4
@@ -4112,10 +4963,12 @@
                     "error"
                 );
 
+
                 newPasswordInput.focus();
 
                 return;
             }
+
 
             if (
                 newPassword !==
@@ -4129,10 +4982,12 @@
                     "error"
                 );
 
+
                 confirmNewPasswordInput.focus();
 
                 return;
             }
+
 
             if (
                 currentPassword ===
@@ -4149,11 +5004,14 @@
                 return;
             }
 
+
             saveNewPasswordButton.disabled =
                 true;
 
+
             saveNewPasswordButton.textContent =
                 "Changing...";
+
 
             try {
 
@@ -4181,7 +5039,10 @@
                         }
                     );
 
-                let data = {};
+
+                let data =
+                    {};
+
 
                 try {
 
@@ -4190,8 +5051,10 @@
 
                 } catch {
 
-                    data = {};
+                    data =
+                        {};
                 }
+
 
                 if (!response.ok) {
 
@@ -4207,17 +5070,20 @@
                             loginScreen
                         );
 
+
                         loginMessage.textContent =
                             "Your session expired. Please unlock MIAH again.";
 
                         return;
                     }
 
+
                     throw new Error(
                         data.error ||
                         "Could not change your password."
                     );
                 }
+
 
                 if (data.token) {
 
@@ -4226,13 +5092,16 @@
                     );
                 }
 
+
                 changePasswordMessage.textContent =
                     data.message ||
                     "Password changed successfully.";
 
+
                 changePasswordMessage.classList.add(
                     "success"
                 );
+
 
                 currentPasswordInput.value =
                     "";
@@ -4243,9 +5112,11 @@
                 confirmNewPasswordInput.value =
                     "";
 
+
                 showToast(
                     "MIAH password changed."
                 );
+
 
                 setTimeout(
                     () => {
@@ -4256,6 +5127,7 @@
                     1200
                 );
 
+
             } catch (error) {
 
                 console.error(
@@ -4263,18 +5135,22 @@
                     error
                 );
 
+
                 changePasswordMessage.textContent =
                     error.message ||
                     "Could not change your password.";
+
 
                 changePasswordMessage.classList.add(
                     "error"
                 );
 
+
             } finally {
 
                 saveNewPasswordButton.disabled =
                     false;
+
 
                 saveNewPasswordButton.textContent =
                     "Change password";
@@ -4299,7 +5175,9 @@
 
             } catch {}
 
+
             clearToken();
+
 
             if (currentAudio) {
 
@@ -4308,6 +5186,7 @@
                 } catch {}
             }
 
+
             if (
                 "speechSynthesis" in window
             ) {
@@ -4315,15 +5194,18 @@
                 speechSynthesis.cancel();
             }
 
+
             showOnlyScreen(
                 loginScreen
             );
+
 
             loginMessage.textContent =
                 "";
 
             loginPassword.value =
                 "";
+
 
             showToast(
                 "MIAH locked."
@@ -4340,23 +5222,29 @@
             messages.innerHTML =
                 "";
 
+
             welcome.classList.remove(
                 "hidden"
             );
+
 
             document.getElementById(
                 "topbar-title"
             ).textContent =
                 "New chat";
 
+
             chatInput.value =
                 "";
 
+
             resizeTextarea();
+
 
             switchView(
                 "chat"
             );
+
 
             chatInput.focus();
         }
@@ -4397,6 +5285,40 @@
                     createPassword();
                 }
             }
+        );
+
+
+        /* ============================================================
+           OWNER VOICE EVENTS
+           ============================================================ */
+
+        enrollVoiceButton.addEventListener(
+            "click",
+            () => {
+
+                if (
+                    enrollmentRecording
+                ) {
+
+                    stopVoiceEnrollment();
+
+                } else {
+
+                    startVoiceEnrollment();
+                }
+            }
+        );
+
+
+        saveVoiceButton.addEventListener(
+            "click",
+            saveVoiceEnrollment
+        );
+
+
+        recordAgainButton.addEventListener(
+            "click",
+            discardVoiceEnrollmentRecording
         );
 
 
@@ -4660,6 +5582,7 @@
                     switchView(
                         "voice"
                     );
+
 
                     if (
                         !isRecordingVoice
