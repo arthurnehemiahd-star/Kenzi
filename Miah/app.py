@@ -1,3 +1,4 @@
+```python
 """
 MIAH — Flask app.
 
@@ -107,11 +108,6 @@ frontend_url = os.environ.get(
 ).strip().rstrip("/")
 
 
-# Always allow the real deployed MIAH frontend.
-#
-# This protects us from a Render FRONTEND_URL environment variable
-# containing an old URL or a URL with a small formatting difference.
-
 ALLOWED_FRONTENDS = list(
     dict.fromkeys(
         [
@@ -125,14 +121,6 @@ ALLOWED_FRONTENDS = list(
 # ======================================================================
 # MAKER AUTHENTICATION
 # ======================================================================
-
-# Set this in Render:
-#
-#     MAKER_PASSWORD=your-private-maker-password
-#
-# DO NOT put the actual password in this file.
-# DO NOT put it in index.html.
-# DO NOT put it in JavaScript.
 
 MAKER_PASSWORD = os.environ.get(
     "MAKER_PASSWORD",
@@ -327,10 +315,6 @@ def _get_authenticated_role():
         None
     """
 
-    # --------------------------------------------------------------
-    # Bearer token
-    # --------------------------------------------------------------
-
     token = _get_bearer_token()
 
     if token:
@@ -344,10 +328,6 @@ def _get_authenticated_role():
             return token_data.get(
                 "role"
             )
-
-    # --------------------------------------------------------------
-    # Flask session
-    # --------------------------------------------------------------
 
     if session.get(
         "authenticated"
@@ -496,6 +476,54 @@ being warm and present for her doesn't mean encouraging her to rely on you \
 instead of the people in her life — if it ever seems relevant, you can be \
 a genuine, caring presence without positioning yourself as a substitute \
 for real relationships.
+
+WEB SEARCH:
+You have access to a live web-search tool called web_search.
+
+Use web_search automatically when a question needs information that may \
+have changed recently or that you cannot reliably know from your existing \
+knowledge.
+
+Examples include:
+- current news
+- today's events
+- current political or government information
+- current sports results, schedules, or standings
+- current prices
+- current product information
+- recent software or technology changes
+- current company information
+- current public figures' recent activities
+- recent scientific developments
+- current weather information
+- current laws, rules, or regulations
+- anything the user asks you to "search", "look up", "check online", \
+  "find out", or similar
+- questions where up-to-date information is important
+
+When you use web_search, do NOT tell the user to open Google, Bing, \
+DuckDuckGo, or another search engine. Do NOT open a search page yourself.
+
+The search happens inside MIAH's backend. Use the search results as \
+research, then answer the user's question directly in the existing MIAH \
+conversation.
+
+For current or factual questions, prefer information from reliable and \
+relevant sources. Do not blindly trust a search result. Compare results \
+when appropriate and make clear when information is uncertain or sources \
+disagree.
+
+If the question is stable general knowledge and does not require current \
+information, answer normally without web search.
+
+When web_search returns URLs and useful source information, you may mention \
+the relevant source names or links naturally when useful. Do not dump a \
+large list of search results into the conversation unless the user asks \
+for the search results themselves.
+
+IMPORTANT:
+web_search is an internal MIAH tool. It must never cause a browser search \
+bar, Google page, Bing page, or external search interface to open.
 
 You can act on the user's device: open another app for simple one-off \
 actions like calling someone, opening Maps, or composing an email \
@@ -681,12 +709,6 @@ def get_session():
 )
 def enroll_voice_endpoint():
 
-    # IMPORTANT:
-    # Do not require login here.
-    #
-    # Voice enrollment happens during first-time setup, before
-    # the normal Kenzi password has necessarily been created.
-
     if "audio" not in request.files:
 
         return jsonify(
@@ -698,19 +720,10 @@ def enroll_voice_endpoint():
 
     try:
 
-        # ----------------------------------------------------------
-        # 1. Process the browser recording and save the owner
-        #    reference voice locally.
-        # ----------------------------------------------------------
-
         auth_mod.set_owner_voice(
             request.files["audio"],
             REFERENCE_CLIP_PATH,
         )
-
-        # ----------------------------------------------------------
-        # 2. Verify that the local WAV was actually created.
-        # ----------------------------------------------------------
 
         if not os.path.exists(
             REFERENCE_CLIP_PATH
@@ -728,15 +741,6 @@ def enroll_voice_endpoint():
             raise RuntimeError(
                 "Voice enrollment created an empty WAV file."
             )
-
-        # ----------------------------------------------------------
-        # 3. Persist the WAV in Supabase Storage.
-        #
-        #    This is the important fix.
-        #
-        #    Render's filesystem is temporary, so without this
-        #    upload the voice disappears after a restart.
-        # ----------------------------------------------------------
 
         backup_owner_voice_to_supabase()
 
@@ -1163,841 +1167,5 @@ def change_password():
 )
 def maker_status():
 
-    if not _require_maker():
-
-        return jsonify(
-            {
-                "ok": False,
-                "error": "Maker authentication required.",
-            }
-        ), 403
-
-    db = load_db()
-
-    history = db.get(
-        "conversations",
-        {},
-    ).get(
-        CONVERSATION_KEY,
-        [],
-    )
-
-    return jsonify(
-        {
-            "ok": True,
-            "maker": "Arthur",
-            "user": "Kenzi Richardson",
-            "service": "MIAH",
-            "backend": "online",
-            "model": HF_MODEL,
-            "voice_enrolled": os.path.exists(
-                REFERENCE_CLIP_PATH
-            ),
-            "password_set": bool(
-                db.get("password_hash")
-            ),
-            "conversation_messages": len(
-                history
-            ),
-        }
-    )
-
-
-# ======================================================================
-# MAKER — CONVERSATION HISTORY
-# ======================================================================
-
-@app.route(
-    "/api/maker/conversations",
-    methods=["GET"],
-)
-def maker_conversations():
-
-    if not _require_maker():
-
-        return jsonify(
-            {
-                "ok": False,
-                "error": "Maker authentication required.",
-            }
-        ), 403
-
-    db = load_db()
-
-    history = db.get(
-        "conversations",
-        {},
-    ).get(
-        CONVERSATION_KEY,
-        [],
-    )
-
-    return jsonify(
-        {
-            "ok": True,
-            "user": "Kenzi Richardson",
-            "conversation_key": CONVERSATION_KEY,
-            "messages": history,
-        }
-    )
-
-
-# ======================================================================
-# MAKER — MEMORY
-# ======================================================================
-
-@app.route(
-    "/api/maker/memory",
-    methods=["GET"],
-)
-def maker_memory():
-
-    if not _require_maker():
-
-        return jsonify(
-            {
-                "ok": False,
-                "error": "Maker authentication required.",
-            }
-        ), 403
-
-    db = load_db()
-
-    return jsonify(
-        {
-            "ok": True,
-            "user": "Kenzi Richardson",
-            "memory_summary": (
-                db.get("memory_summary")
-                or ""
-            ),
-        }
-    )
-
-
-# ======================================================================
-# LOGOUT
-# ======================================================================
-
-@app.route(
-    "/api/logout",
-    methods=["POST"],
-)
-def logout():
-
-    session.clear()
-
-    return jsonify(
-        {
-            "ok": True
-        }
-    )
-
-
-# ======================================================================
-# CHAT
-# ======================================================================
-
-@app.route(
-    "/api/chat",
-    methods=["POST"],
-)
-def chat():
-
-    if not _require_user():
-
-        return jsonify(
-            {
-                "error": "Not authenticated"
-            }
-        ), 401
-
-    data = request.get_json(
-        force=True,
-        silent=True,
-    ) or {}
-
-    user_text = (
-        data.get("text")
-        or ""
-    ).strip()
-
-    platform = data.get(
-        "platform",
-        "unknown",
-    )
-
-    if not user_text:
-
-        return jsonify(
-            {
-                "error": "No text provided"
-            }
-        ), 400
-
-    db = load_db()
-
-    history = db[
-        "conversations"
-    ].setdefault(
-        CONVERSATION_KEY,
-        [],
-    )
-
-    history.append(
-        {
-            "role": "user",
-            "content": user_text,
-        }
-    )
-
-    system_prompt = build_system_prompt(
-        platform,
-        db.get("memory_summary"),
-    )
-
-    available_tools = (
-        anthropic_tools_to_openai(
-            get_tools_for_platform(
-                platform
-            )
-        )
-    )
-
-    pending_action = None
-    reply_text = ""
-
-    try:
-
-        for _ in range(
-            MAX_TOOL_ITERATIONS
-        ):
-
-            result = call_llm(
-                history,
-                tools=available_tools,
-                system=system_prompt,
-            )
-
-            message = result[
-                "choices"
-            ][0]["message"]
-
-            tool_calls = message.get(
-                "tool_calls"
-            )
-
-            assistant_entry = {
-                "role": "assistant",
-                "content": message.get(
-                    "content"
-                ),
-            }
-
-            if tool_calls:
-
-                assistant_entry[
-                    "tool_calls"
-                ] = tool_calls
-
-            history.append(
-                assistant_entry
-            )
-
-            if not tool_calls:
-
-                reply_text = (
-                    message.get(
-                        "content"
-                    )
-                    or ""
-                )
-
-                break
-
-            for tool_call in tool_calls:
-
-                func = tool_call.get(
-                    "function",
-                    {},
-                )
-
-                name = func.get(
-                    "name",
-                    "",
-                )
-
-                try:
-
-                    tool_args = json.loads(
-                        func.get(
-                            "arguments"
-                        )
-                        or "{}"
-                    )
-
-                except json.JSONDecodeError:
-
-                    tool_args = {}
-
-                result_text, action = (
-                    execute_tool(
-                        name,
-                        tool_args,
-                        db,
-                    )
-                )
-
-                if action:
-                    pending_action = action
-
-                history.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": (
-                            tool_call.get(
-                                "id",
-                                "",
-                            )
-                        ),
-                        "content": result_text,
-                    }
-                )
-
-        else:
-
-            reply_text = (
-                "I got stuck in a loop — "
-                "try asking again in a simpler way."
-            )
-
-    except LLMError as e:
-
-        if history:
-            history.pop()
-
-        return jsonify(
-            {
-                "error": str(e)
-            }
-        ), 502
-
-    except Exception as e:
-
-        if history:
-            history.pop()
-
-        return jsonify(
-            {
-                "error": (
-                    f"Chat failed: {e}"
-                )
-            }
-        ), 500
-
-    try:
-
-        maybe_summarize_history(
-            db,
-            call_llm,
-        )
-
-    except Exception:
-
-        pass
-
-    save_db(db)
-
-    payload = {
-        "reply": reply_text,
-    }
-
-    if pending_action:
-
-        payload[
-            "action"
-        ] = pending_action
-
-    return jsonify(payload)
-
-
-# ======================================================================
-# VOICE — TRANSCRIPTION
-# ======================================================================
-
-@app.route(
-    "/api/transcribe",
-    methods=["POST"],
-)
-def transcribe():
-
-    if not _require_user():
-
-        return jsonify(
-            {
-                "error": "Not authenticated"
-            }
-        ), 401
-
-    if "audio" not in request.files:
-
-        return jsonify(
-            {
-                "error": (
-                    "No audio file provided"
-                )
-            }
-        ), 400
-
-    audio_file = request.files[
-        "audio"
-    ]
-
-    original_name = os.path.basename(
-        audio_file.filename
-        or "input.webm"
-    )
-
-    extension = (
-        os.path.splitext(
-            original_name
-        )[1]
-        or ".webm"
-    )
-
-    with tempfile.NamedTemporaryFile(
-        suffix=extension,
-        delete=False,
-    ) as tmp:
-
-        audio_file.save(
-            tmp.name
-        )
-
-        tmp_path = tmp.name
-
-    try:
-
-        text = voice_mod.transcribe_file(
-            tmp_path
-        )
-
-    except Exception as e:
-
-        return jsonify(
-            {
-                "error": (
-                    f"Transcription failed: {e}"
-                )
-            }
-        ), 500
-
-    finally:
-
-        if os.path.exists(
-            tmp_path
-        ):
-
-            try:
-
-                auth_mod.record_voice_sample(
-                    tmp_path
-                )
-
-            except Exception:
-
-                pass
-
-            try:
-
-                os.unlink(
-                    tmp_path
-                )
-
-            except Exception:
-
-                pass
-
-    return jsonify(
-        {
-            "text": text
-        }
-    )
-
-
-# ======================================================================
-# VOICE — SPEECH
-# ======================================================================
-
-@app.route(
-    "/api/speak",
-    methods=["POST"],
-)
-def speak():
-
-    if not _require_user():
-
-        return jsonify(
-            {
-                "error": "Not authenticated"
-            }
-        ), 401
-
-    # Make sure the owner voice can be restored from Supabase
-    # if Render's temporary filesystem no longer contains it.
-
-    if not os.path.exists(
-        REFERENCE_CLIP_PATH
-    ):
-
-        try:
-
-            voice_mod.ensure_reference_voice()
-
-        except Exception:
-
-            pass
-
-    if not os.path.exists(
-        REFERENCE_CLIP_PATH
-    ):
-
-        return jsonify(
-            {
-                "error": (
-                    "No voice enrolled "
-                    "on the server yet"
-                )
-            }
-        ), 400
-
-    data = request.get_json(
-        force=True,
-        silent=True,
-    ) or {}
-
-    text = (
-        data.get("text")
-        or ""
-    ).strip()
-
-    if not text:
-
-        return jsonify(
-            {
-                "error": "No text provided"
-            }
-        ), 400
-
-    try:
-
-        output_path = (
-            voice_mod.synthesize_speech(
-                text
-            )
-        )
-
-    except Exception as e:
-
-        return jsonify(
-            {
-                "error": (
-                    "Speech synthesis failed: "
-                    f"{e}"
-                )
-            }
-        ), 500
-
-    def _cleanup_and_send():
-
-        try:
-
-            with open(
-                output_path,
-                "rb",
-            ) as f:
-
-                data_bytes = f.read()
-
-            yield data_bytes
-
-        finally:
-
-            if os.path.exists(
-                output_path
-            ):
-
-                try:
-
-                    os.unlink(
-                        output_path
-                    )
-
-                except Exception:
-
-                    pass
-
-    return Response(
-        _cleanup_and_send(),
-        mimetype="audio/wav",
-    )
-
-
-# ======================================================================
-# SPOTIFY
-# ======================================================================
-
-@app.route(
-    "/spotify/login"
-)
-def spotify_login():
-
-    if not _require_user():
-
-        return (
-            "Please log into MIAH first.",
-            401,
-        )
-
-    return redirect(
-        music_mod.build_login_url()
-    )
-
-
-@app.route(
-    "/spotify/callback"
-)
-def spotify_callback():
-
-    if not _require_user():
-
-        return (
-            "Please log into MIAH first.",
-            401,
-        )
-
-    code = request.args.get(
-        "code"
-    )
-
-    state = request.args.get(
-        "state"
-    )
-
-    if not code:
-
-        return (
-            "Spotify authorization was "
-            "cancelled or failed.",
-            400,
-        )
-
-    try:
-
-        ok, message = (
-            music_mod.handle_callback(
-                code,
-                state,
-            )
-        )
-
-    except Exception as e:
-
-        return (
-            "Spotify authorization failed: "
-            f"{e}",
-            500,
-        )
-
-    if not ok:
-
-        return (
-            message,
-            400,
-        )
-
-    return (
-        f"{message} "
-        "You can close this tab and go back to MIAH, "
-        '<a href="/" style="color:#4FD1FF;">'
-        "tap here"
-        "</a>."
-    )
-
-
-# ======================================================================
-# MUSIC LIBRARY
-# ======================================================================
-
-@app.route(
-    "/api/music/list",
-    methods=["GET"],
-)
-def music_list():
-
-    if not _require_user():
-
-        return jsonify(
-            {
-                "error": "Not authenticated"
-            }
-        ), 401
-
-    return jsonify(
-        {
-            "tracks": (
-                music_mod.list_local_tracks()
-            )
-        }
-    )
-
-
-@app.route(
-    "/api/music/file/<path:filename>",
-    methods=["GET"],
-)
-def music_file(filename):
-
-    if not _require_user():
-
-        return jsonify(
-            {
-                "error": "Not authenticated"
-            }
-        ), 401
-
-    full_path = (
-        music_mod.resolve_track_path(
-            filename
-        )
-    )
-
-    if not full_path:
-
-        return jsonify(
-            {
-                "error": "Track not found"
-            }
-        ), 404
-
-    return send_file(
-        full_path
-    )
-
-
-# ======================================================================
-# CLI VOICE ENROLLMENT
-# ======================================================================
-
-def enroll_voice_cli(
-    seconds=25
-):
-
-    import sounddevice as sd
-    import soundfile as sf
-
-    ensure_dirs()
-
-    sample_rate = 22050
-
-    print(
-        f"Recording {seconds} seconds. "
-        "Speak naturally — read a paragraph"
-    )
-
-    print(
-        "aloud, or talk about your day. "
-        "Clean, natural speech clones best."
-    )
-
-    input(
-        "Press Enter when ready to start recording..."
-    )
-
-    audio = sd.rec(
-        int(
-            seconds
-            * sample_rate
-        ),
-        samplerate=sample_rate,
-        channels=1,
-        dtype="float32",
-    )
-
-    sd.wait()
-
-    sf.write(
-        REFERENCE_CLIP_PATH,
-        audio.flatten(),
-        sample_rate,
-    )
-
-    print(
-        f"\nSaved -> {REFERENCE_CLIP_PATH}"
-    )
-
-    # --------------------------------------------------------------
-    # Also back up the CLI-enrolled voice to Supabase.
-    # --------------------------------------------------------------
-
-    try:
-
-        backup_owner_voice_to_supabase()
-
-        print(
-            "Backed up owner voice -> "
-            f"Supabase Storage/{VOICE_BUCKET}/"
-            f"{VOICE_OBJECT}"
-        )
-
-    except Exception as e:
-
-        print(
-            "WARNING: Local voice was saved, "
-            "but the Supabase backup failed:"
-        )
-
-        print(
-            repr(e)
-        )
-
-
-# ======================================================================
-# START SERVER
-# ======================================================================
-
-if __name__ == "__main__":
-
-    import argparse
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--enroll",
-        action="store_true",
-        help=(
-            "Enroll your voice from "
-            "the terminal, then exit"
-        ),
-    )
-
-    args = parser.parse_args()
-
-    if args.enroll:
-
-        enroll_voice_cli()
-
-    else:
-
-        port = int(
-            os.environ.get(
-                "PORT",
-                5000,
-            )
-        )
-
-        app.run(
-            host="0.0.0.0",
-            port=port,
-            debug=False,
-        )
+    if not _require_maker()
+```
