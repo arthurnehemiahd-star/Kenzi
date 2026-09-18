@@ -1,3 +1,4 @@
+```python
 """
 MIAH — Flask app.
 
@@ -100,7 +101,7 @@ frontend_url = os.environ.get(
 # ======================================================================
 # MAKER AUTHENTICATION
 # ======================================================================
-#
+
 # Set this in Render:
 #
 #     MAKER_PASSWORD=your-private-maker-password
@@ -108,12 +109,11 @@ frontend_url = os.environ.get(
 # DO NOT put the actual password in this file.
 # DO NOT put it in index.html.
 # DO NOT put it in JavaScript.
-#
 
 MAKER_PASSWORD = os.environ.get(
     "MAKER_PASSWORD",
     "",
-)
+).strip()
 
 
 # ======================================================================
@@ -220,7 +220,6 @@ def _read_auth_token(token):
         return None
 
     try:
-
         data = _auth_serializer.loads(
             token,
             max_age=int(
@@ -313,6 +312,7 @@ def _get_authenticated_role():
         )
 
         if token_data:
+
             return token_data.get(
                 "role"
             )
@@ -325,10 +325,16 @@ def _get_authenticated_role():
         "authenticated"
     ) is True:
 
-        return session.get(
+        role = session.get(
             "role",
             "user",
         )
+
+        if role in {
+            "user",
+            "maker",
+        }:
+            return role
 
     return None
 
@@ -525,6 +531,50 @@ def status():
 
 
 # ======================================================================
+# SESSION
+# ======================================================================
+#
+# The frontend uses this endpoint on startup to determine whether the
+# stored bearer token belongs to Kenzi or Arthur.
+#
+
+@app.route(
+    "/api/session",
+    methods=["GET"],
+)
+def get_session():
+
+    role = _get_authenticated_role()
+
+    if role is None:
+
+        return jsonify(
+            {
+                "authenticated": False,
+                "role": None,
+            }
+        )
+
+    if role == "maker":
+
+        return jsonify(
+            {
+                "authenticated": True,
+                "role": "maker",
+                "name": "Arthur",
+            }
+        )
+
+    return jsonify(
+        {
+            "authenticated": True,
+            "role": "user",
+            "name": "Kenzi Richardson",
+        }
+    )
+
+
+# ======================================================================
 # SETUP — VOICE ENROLLMENT
 # ======================================================================
 
@@ -619,6 +669,7 @@ def set_password_endpoint():
             "ok": True,
             "token": token,
             "role": "user",
+            "name": "Kenzi Richardson",
             "message": (
                 "Password created successfully."
             ),
@@ -636,19 +687,6 @@ def set_password_endpoint():
 )
 def login():
 
-    db = load_db()
-
-    if not db.get(
-        "password_hash"
-    ):
-
-        return jsonify(
-            {
-                "ok": False,
-                "error": "No password set yet.",
-            }
-        ), 400
-
     data = request.get_json(
         force=True,
         silent=True,
@@ -662,10 +700,12 @@ def login():
     # ==================================================================
     # ARTHUR — MAKER LOGIN
     # ==================================================================
-
     #
-    # We use compare_digest so the maker password isn't checked using
-    # an ordinary string comparison.
+    # IMPORTANT:
+    # Arthur must be checked FIRST.
+    #
+    # This means Arthur can access the maker dashboard even when Kenzi
+    # has not created her normal password yet.
     #
 
     if (
@@ -700,6 +740,19 @@ def login():
     # ==================================================================
     # KENZI — NORMAL USER LOGIN
     # ==================================================================
+
+    db = load_db()
+
+    if not db.get(
+        "password_hash"
+    ):
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": "No password set yet.",
+            }
+        ), 400
 
     if auth_mod.check_password(
         password
@@ -815,8 +868,6 @@ def voice_login():
 )
 def change_password():
 
-    # Only Kenzi's normal account should be able to change
-    # the normal MIAH password.
     if not _require_user():
 
         return jsonify(
@@ -917,12 +968,6 @@ def change_password():
             }
         ), 401
 
-    # IMPORTANT:
-    # Use change_password(), NOT set_password().
-    #
-    # set_password() is only for first-run setup.
-    #
-
     ok, error = auth_mod.change_password(
         current_password,
         new_password,
@@ -957,6 +1002,7 @@ def change_password():
             "ok": True,
             "token": token,
             "role": "user",
+            "name": "Kenzi Richardson",
             "message": (
                 "Password changed successfully."
             ),
@@ -1115,8 +1161,6 @@ def logout():
 )
 def chat():
 
-    # Only the normal MIAH user talks to MIAH
-    # through this endpoint.
     if not _require_user():
 
         return jsonify(
@@ -1130,8 +1174,6 @@ def chat():
         silent=True,
     ) or {}
 
-    # IMPORTANT:
-    # The frontend sends "text", not "message".
     user_text = (
         data.get("text")
         or ""
@@ -1219,10 +1261,6 @@ def chat():
                 assistant_entry
             )
 
-            # ------------------------------------------------------
-            # Normal answer
-            # ------------------------------------------------------
-
             if not tool_calls:
 
                 reply_text = (
@@ -1233,10 +1271,6 @@ def chat():
                 )
 
                 break
-
-            # ------------------------------------------------------
-            # Tool calls
-            # ------------------------------------------------------
 
             for tool_call in tool_calls:
 
@@ -1784,3 +1818,4 @@ if __name__ == "__main__":
             port=port,
             debug=False,
         )
+```
