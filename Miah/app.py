@@ -98,6 +98,21 @@ frontend_url = os.environ.get(
 ).strip().rstrip("/")
 
 
+# Always allow the real deployed MIAH frontend.
+#
+# This protects us from a Render FRONTEND_URL environment variable
+# containing an old URL or a URL with a small formatting difference.
+
+ALLOWED_FRONTENDS = list(
+    dict.fromkeys(
+        [
+            frontend_url,
+            "https://kenzilynn.vercel.app",
+        ]
+    )
+)
+
+
 # ======================================================================
 # MAKER AUTHENTICATION
 # ======================================================================
@@ -129,12 +144,20 @@ app.config.update(
 # ======================================================================
 # CORS
 # ======================================================================
+#
+# MIAH's frontend is hosted on Vercel and the API is hosted on Render.
+#
+# The frontend also sends Authorization headers containing the signed
+# MIAH bearer token.
+#
+# We explicitly allow the production Vercel frontend here.
+# ======================================================================
 
 CORS(
     app,
     resources={
         r"/api/*": {
-            "origins": frontend_url,
+            "origins": ALLOWED_FRONTENDS,
         }
     },
     supports_credentials=True,
@@ -147,13 +170,16 @@ CORS(
         "POST",
         "OPTIONS",
     ],
+    expose_headers=[
+        "Content-Type",
+    ],
 )
 
 CORS(
     app,
     resources={
         r"/spotify/*": {
-            "origins": frontend_url,
+            "origins": ALLOWED_FRONTENDS,
         }
     },
     supports_credentials=True,
@@ -220,6 +246,7 @@ def _read_auth_token(token):
         return None
 
     try:
+
         data = _auth_serializer.loads(
             token,
             max_age=int(
@@ -533,10 +560,6 @@ def status():
 # ======================================================================
 # SESSION
 # ======================================================================
-#
-# The frontend uses this endpoint on startup to determine whether the
-# stored bearer token belongs to Kenzi or Arthur.
-#
 
 @app.route(
     "/api/session",
@@ -700,13 +723,6 @@ def login():
     # ==================================================================
     # ARTHUR — MAKER LOGIN
     # ==================================================================
-    #
-    # IMPORTANT:
-    # Arthur must be checked FIRST.
-    #
-    # This means Arthur can access the maker dashboard even when Kenzi
-    # has not created her normal password yet.
-    #
 
     if (
         MAKER_PASSWORD
