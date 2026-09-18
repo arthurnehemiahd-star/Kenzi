@@ -1050,6 +1050,10 @@ def change_password():
 # MAKER — DASHBOARD STATUS
 # ======================================================================
 
+# ======================================================================
+# MAKER — DASHBOARD STATUS
+# ======================================================================
+
 @app.route(
     "/api/maker/status",
     methods=["GET"],
@@ -1057,7 +1061,6 @@ def change_password():
 def maker_status():
 
     if not _require_maker():
-
         return jsonify(
             {
                 "ok": False,
@@ -1071,4 +1074,3 @@ def maker_status():
             "maker": True,
         }
     )
-
