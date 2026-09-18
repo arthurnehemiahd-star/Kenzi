@@ -1,4 +1,3 @@
-
 """
 MIAH — Flask app.
 
@@ -36,7 +35,9 @@ from flask import (
     send_file,
     session,
 )
+
 from flask_cors import CORS
+
 from itsdangerous import (
     BadSignature,
     SignatureExpired,
@@ -73,6 +74,14 @@ from tools import (
 import auth as auth_mod
 import music as music_mod
 import voice as voice_mod
+
+from supabase_store import (
+    SUPABASE_URL,
+    SUPABASE_SECRET_KEY,
+    VOICE_BUCKET,
+    VOICE_OBJECT,
+    get_client,
+)
 
 
 # ======================================================================
@@ -143,14 +152,6 @@ app.config.update(
 
 # ======================================================================
 # CORS
-# ======================================================================
-#
-# MIAH's frontend is hosted on Vercel and the API is hosted on Render.
-#
-# The frontend also sends Authorization headers containing the signed
-# MIAH bearer token.
-#
-# We explicitly allow the production Vercel frontend here.
 # ======================================================================
 
 CORS(
@@ -400,6 +401,79 @@ def _require_maker():
 
 
 # ======================================================================
+# SUPABASE OWNER VOICE BACKUP
+# ======================================================================
+
+def backup_owner_voice_to_supabase():
+    """
+    Upload the enrolled owner voice to Supabase Storage.
+
+    Render's local filesystem is temporary, so the owner reference
+    voice must also be stored in persistent Supabase Storage.
+
+    Bucket:
+        miah-private
+
+    Object:
+        owner_voice.wav
+    """
+
+    if not SUPABASE_URL or not SUPABASE_SECRET_KEY:
+
+        raise RuntimeError(
+            "Supabase storage is not configured. "
+            "Make sure SUPABASE_URL and "
+            "SUPABASE_SECRET_KEY are set in Render."
+        )
+
+    if not os.path.exists(
+        REFERENCE_CLIP_PATH
+    ):
+
+        raise FileNotFoundError(
+            "The enrolled voice file was not created."
+        )
+
+    file_size = os.path.getsize(
+        REFERENCE_CLIP_PATH
+    )
+
+    if file_size <= 0:
+
+        raise RuntimeError(
+            "The enrolled voice file is empty."
+        )
+
+    client = get_client()
+
+    with open(
+        REFERENCE_CLIP_PATH,
+        "rb",
+    ) as voice_file:
+
+        voice_bytes = voice_file.read()
+
+    if not voice_bytes:
+
+        raise RuntimeError(
+            "The enrolled voice file contains no data."
+        )
+
+    client.storage.from_(
+        VOICE_BUCKET
+    ).upload(
+        VOICE_OBJECT,
+        voice_bytes,
+        {
+            "content-type": "audio/wav",
+            "upsert": "true",
+        },
+    )
+
+    return True
+
+
+# ======================================================================
 # SYSTEM PROMPT
 # ======================================================================
 
@@ -607,37 +681,90 @@ def get_session():
 )
 def enroll_voice_endpoint():
 
+    # IMPORTANT:
+    # Do not require login here.
+    #
+    # Voice enrollment happens during first-time setup, before
+    # the normal Kenzi password has necessarily been created.
+
     if "audio" not in request.files:
 
         return jsonify(
             {
-                "error": (
-                    "No audio file provided"
-                )
+                "ok": False,
+                "error": "No audio file provided",
             }
         ), 400
 
     try:
+
+        # ----------------------------------------------------------
+        # 1. Process the browser recording and save the owner
+        #    reference voice locally.
+        # ----------------------------------------------------------
 
         auth_mod.set_owner_voice(
             request.files["audio"],
             REFERENCE_CLIP_PATH,
         )
 
+        # ----------------------------------------------------------
+        # 2. Verify that the local WAV was actually created.
+        # ----------------------------------------------------------
+
+        if not os.path.exists(
+            REFERENCE_CLIP_PATH
+        ):
+
+            raise FileNotFoundError(
+                "Voice enrollment completed, "
+                "but the reference WAV was not created."
+            )
+
+        if os.path.getsize(
+            REFERENCE_CLIP_PATH
+        ) <= 0:
+
+            raise RuntimeError(
+                "Voice enrollment created an empty WAV file."
+            )
+
+        # ----------------------------------------------------------
+        # 3. Persist the WAV in Supabase Storage.
+        #
+        #    This is the important fix.
+        #
+        #    Render's filesystem is temporary, so without this
+        #    upload the voice disappears after a restart.
+        # ----------------------------------------------------------
+
+        backup_owner_voice_to_supabase()
+
     except Exception as e:
+
+        print(
+            "[voice] Enrollment failed:",
+            repr(e),
+        )
 
         return jsonify(
             {
+                "ok": False,
                 "error": (
-                    "Couldn't process that "
-                    f"recording: {e}"
-                )
+                    "Couldn't save the voice: "
+                    f"{e}"
+                ),
             }
         ), 500
 
     return jsonify(
         {
-            "ok": True
+            "ok": True,
+            "voice_enrolled": True,
+            "message": (
+                "MIAH owner voice enrolled "
+                "and securely backed up."
+            ),
         }
     )
 
@@ -1516,6 +1643,21 @@ def speak():
             }
         ), 401
 
+    # Make sure the owner voice can be restored from Supabase
+    # if Render's temporary filesystem no longer contains it.
+
+    if not os.path.exists(
+        REFERENCE_CLIP_PATH
+    ):
+
+        try:
+
+            voice_mod.ensure_reference_voice()
+
+        except Exception:
+
+            pass
+
     if not os.path.exists(
         REFERENCE_CLIP_PATH
     ):
@@ -1794,6 +1936,31 @@ def enroll_voice_cli(
         f"\nSaved -> {REFERENCE_CLIP_PATH}"
     )
 
+    # --------------------------------------------------------------
+    # Also back up the CLI-enrolled voice to Supabase.
+    # --------------------------------------------------------------
+
+    try:
+
+        backup_owner_voice_to_supabase()
+
+        print(
+            "Backed up owner voice -> "
+            f"Supabase Storage/{VOICE_BUCKET}/"
+            f"{VOICE_OBJECT}"
+        )
+
+    except Exception as e:
+
+        print(
+            "WARNING: Local voice was saved, "
+            "but the Supabase backup failed:"
+        )
+
+        print(
+            repr(e)
+        )
+
 
 # ======================================================================
 # START SERVER
@@ -1834,4 +2001,3 @@ if __name__ == "__main__":
             port=port,
             debug=False,
         )
-
