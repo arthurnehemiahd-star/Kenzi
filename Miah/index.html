@@ -43,10 +43,6 @@
     >
 
     <style>
-        /* ============================================================
-           MIAH — MODERN AI INTERFACE
-           ============================================================ */
-
         :root {
             --bg: #0b0b0f;
             --sidebar: #111116;
@@ -102,10 +98,6 @@
         button {
             border: 0;
         }
-
-        /* ============================================================
-           GENERAL
-           ============================================================ */
 
         .hidden {
             display: none !important;
@@ -244,6 +236,12 @@
         .primary-button:hover {
             transform: translateY(-1px);
             opacity: .92;
+        }
+
+        .primary-button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .secondary-button {
@@ -759,6 +757,11 @@
             opacity: .9;
         }
 
+        .composer-button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
         .composer-hint {
             width: min(850px, 100%);
 
@@ -1004,7 +1007,7 @@
         }
 
         /* ============================================================
-           CAMERA
+           MODALS
            ============================================================ */
 
         .modal-backdrop {
@@ -1042,6 +1045,10 @@
 
             box-shadow:
                 0 30px 100px rgba(0,0,0,.5);
+        }
+
+        .password-modal {
+            width: min(440px, 100%);
         }
 
         .modal-header {
@@ -1096,6 +1103,24 @@
             background: var(--text);
 
             color: #111;
+        }
+
+        .password-message {
+            min-height: 22px;
+
+            margin-top: 8px;
+
+            font-size: 13px;
+
+            line-height: 1.5;
+        }
+
+        .password-message.error {
+            color: var(--danger);
+        }
+
+        .password-message.success {
+            color: var(--success);
         }
 
         /* ============================================================
@@ -1451,6 +1476,16 @@
 
                 </div>
 
+                <!-- NEW CHANGE PASSWORD BUTTON -->
+
+                <button
+                    id="change-password-button"
+                    class="nav-button"
+                >
+                    <span class="nav-icon">🔑</span>
+                    <span>Change password</span>
+                </button>
+
                 <button
                     id="logout-button"
                     class="nav-button"
@@ -1654,9 +1689,7 @@
                     id="music-list"
                     class="music-list"
                 >
-                    <div
-                        style="color:var(--muted);"
-                    >
+                    <div style="color:var(--muted);">
                         Loading music...
                     </div>
                 </div>
@@ -1778,6 +1811,115 @@
 
 
     <!-- ============================================================
+         CHANGE PASSWORD MODAL
+         ============================================================ -->
+
+    <div
+        id="change-password-modal"
+        class="modal-backdrop hidden"
+    >
+
+        <div class="modal password-modal">
+
+            <div class="modal-header">
+
+                <div class="modal-title">
+                    Change password
+                </div>
+
+                <button
+                    id="close-change-password"
+                    class="icon-button"
+                    type="button"
+                    aria-label="Close"
+                >
+                    ✕
+                </button>
+
+            </div>
+
+            <div class="info-text" style="margin-bottom:20px;">
+                Change the password used to unlock your private MIAH
+                assistant.
+            </div>
+
+            <label
+                class="auth-label"
+                for="current-password"
+            >
+                Current password
+            </label>
+
+            <input
+                id="current-password"
+                class="auth-input"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Enter current password"
+            >
+
+            <label
+                class="auth-label"
+                for="new-password"
+            >
+                New password
+            </label>
+
+            <input
+                id="new-password"
+                class="auth-input"
+                type="password"
+                autocomplete="new-password"
+                placeholder="Enter new password"
+            >
+
+            <label
+                class="auth-label"
+                for="confirm-new-password"
+            >
+                Confirm new password
+            </label>
+
+            <input
+                id="confirm-new-password"
+                class="auth-input"
+                type="password"
+                autocomplete="new-password"
+                placeholder="Confirm new password"
+            >
+
+            <div
+                id="change-password-message"
+                class="password-message"
+            ></div>
+
+            <div class="modal-actions">
+
+                <button
+                    id="save-new-password"
+                    class="primary"
+                    type="button"
+                    style="flex:1;"
+                >
+                    Change password
+                </button>
+
+                <button
+                    id="cancel-change-password"
+                    type="button"
+                    style="flex:1;"
+                >
+                    Cancel
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ============================================================
          TOAST
          ============================================================ -->
 
@@ -1788,10 +1930,9 @@
 
 
     <script>
+
         /* ============================================================
            MIAH FRONTEND
-           IMPORTANT:
-           This matches the Flask backend you supplied.
            ============================================================ */
 
         const API = "https://kenzi.onrender.com";
@@ -1950,6 +2091,56 @@
 
 
         /* ============================================================
+           CHANGE PASSWORD ELEMENTS
+           ============================================================ */
+
+        const changePasswordButton =
+            document.getElementById(
+                "change-password-button"
+            );
+
+        const changePasswordModal =
+            document.getElementById(
+                "change-password-modal"
+            );
+
+        const currentPasswordInput =
+            document.getElementById(
+                "current-password"
+            );
+
+        const newPasswordInput =
+            document.getElementById(
+                "new-password"
+            );
+
+        const confirmNewPasswordInput =
+            document.getElementById(
+                "confirm-new-password"
+            );
+
+        const changePasswordMessage =
+            document.getElementById(
+                "change-password-message"
+            );
+
+        const saveNewPasswordButton =
+            document.getElementById(
+                "save-new-password"
+            );
+
+        const closeChangePasswordButton =
+            document.getElementById(
+                "close-change-password"
+            );
+
+        const cancelChangePasswordButton =
+            document.getElementById(
+                "cancel-change-password"
+            );
+
+
+        /* ============================================================
            STATE
            ============================================================ */
 
@@ -1971,6 +2162,7 @@
            ============================================================ */
 
         function getToken() {
+
             return localStorage.getItem(
                 TOKEN_KEY
             );
@@ -1978,7 +2170,9 @@
 
 
         function setToken(token) {
+
             if (token) {
+
                 localStorage.setItem(
                     TOKEN_KEY,
                     token
@@ -1988,6 +2182,7 @@
 
 
         function clearToken() {
+
             localStorage.removeItem(
                 TOKEN_KEY
             );
@@ -2004,12 +2199,14 @@
                 ua.includes("ipad") ||
                 ua.includes("ipod")
             ) {
+
                 return "ios";
             }
 
             if (
                 ua.includes("android")
             ) {
+
                 return "android";
             }
 
@@ -2019,15 +2216,23 @@
 
         function showToast(message) {
 
-            toast.textContent = message;
+            toast.textContent =
+                message;
 
-            toast.classList.add("show");
+            toast.classList.add(
+                "show"
+            );
 
-            setTimeout(() => {
-                toast.classList.remove(
-                    "show"
-                );
-            }, 2800);
+            setTimeout(
+                () => {
+
+                    toast.classList.remove(
+                        "show"
+                    );
+
+                },
+                2800
+            );
         }
 
 
@@ -2093,6 +2298,7 @@
                 getToken();
 
             if (token) {
+
                 headers.set(
                     "Authorization",
                     `Bearer ${token}`
@@ -2155,6 +2361,7 @@
                     );
 
                 if (!response.ok) {
+
                     throw new Error(
                         `Backend returned ${response.status}`
                     );
@@ -2317,13 +2524,17 @@
                 }
 
                 if (data.token) {
+
                     setToken(
                         data.token
                     );
                 }
 
-                setupPassword.value = "";
-                setupPasswordConfirm.value = "";
+                setupPassword.value =
+                    "";
+
+                setupPasswordConfirm.value =
+                    "";
 
                 openMainScreen();
 
@@ -2333,7 +2544,9 @@
 
             } catch (error) {
 
-                console.error(error);
+                console.error(
+                    error
+                );
 
                 setupPasswordMessage.textContent =
                     error.message ||
@@ -2409,12 +2622,14 @@
                 }
 
                 if (data.token) {
+
                     setToken(
                         data.token
                     );
                 }
 
-                loginPassword.value = "";
+                loginPassword.value =
+                    "";
 
                 openMainScreen();
 
@@ -2424,7 +2639,9 @@
 
             } catch (error) {
 
-                console.error(error);
+                console.error(
+                    error
+                );
 
                 loginMessage.textContent =
                     error.message ||
@@ -2493,14 +2710,16 @@
                 .querySelectorAll(
                     ".nav-button[data-view]"
                 )
-                .forEach(button => {
+                .forEach(
+                    button => {
 
-                    button.classList.toggle(
-                        "active",
-                        button.dataset.view === view
-                    );
+                        button.classList.toggle(
+                            "active",
+                            button.dataset.view === view
+                        );
 
-                });
+                    }
+                );
 
             const topbarTitle =
                 document.getElementById(
@@ -2660,6 +2879,7 @@
                     <div class="message-label">
                         MIAH
                     </div>
+
                     <div>
                         Thinking…
                     </div>
@@ -2689,6 +2909,7 @@
                 );
 
             if (thinking) {
+
                 thinking.remove();
             }
         }
@@ -2707,6 +2928,7 @@
                     .trim();
 
             if (!text) {
+
                 return;
             }
 
@@ -2715,7 +2937,8 @@
                 text
             );
 
-            chatInput.value = "";
+            chatInput.value =
+                "";
 
             resizeTextarea();
 
@@ -2735,23 +2958,6 @@
                         "Your MIAH session has expired. Please unlock MIAH again."
                     );
                 }
-
-                /*
-                 * IMPORTANT:
-                 *
-                 * The Flask backend expects:
-                 *
-                 * {
-                 *     "text": "...",
-                 *     "platform": "desktop"
-                 * }
-                 *
-                 * NOT:
-                 *
-                 * {
-                 *     "message": "..."
-                 * }
-                 */
 
                 const response =
                     await fetch(
@@ -2779,9 +2985,12 @@
                 let data = {};
 
                 try {
+
                     data =
                         await response.json();
+
                 } catch {
+
                     data = {};
                 }
 
@@ -2813,14 +3022,6 @@
 
                 removeThinking();
 
-                /*
-                 * Backend returns:
-                 *
-                 * {
-                 *     "reply": "..."
-                 * }
-                 */
-
                 const reply =
                     data.reply || "";
 
@@ -2836,21 +3037,12 @@
                     reply
                 );
 
-                /*
-                 * If the backend asks the frontend to perform
-                 * an action, handle it here.
-                 */
-
                 if (data.action) {
 
                     handleAction(
                         data.action
                     );
                 }
-
-                /*
-                 * Automatically speak MIAH's response.
-                 */
 
                 speakMiah(
                     reply
@@ -2894,13 +3086,9 @@
         ) {
 
             if (!action) {
+
                 return;
             }
-
-            /*
-             * We accept several possible action shapes because the
-             * tools.py implementation may return different fields.
-             */
 
             const type =
                 action.type ||
@@ -2908,6 +3096,7 @@
                 action.name;
 
             if (!type) {
+
                 return;
             }
 
@@ -3018,6 +3207,7 @@
                     getToken();
 
                 if (!token) {
+
                     browserSpeak(
                         text
                     );
@@ -3046,11 +3236,6 @@
                     );
 
                 if (!response.ok) {
-
-                    /*
-                     * If the saved MIAH voice is not available,
-                     * browser speech remains a fallback.
-                     */
 
                     browserSpeak(
                         text
@@ -3081,6 +3266,7 @@
 
                 currentAudio.onended =
                     () => {
+
                         URL.revokeObjectURL(
                             url
                         );
@@ -3109,6 +3295,7 @@
             if (
                 !("speechSynthesis" in window)
             ) {
+
                 return;
             }
 
@@ -3149,6 +3336,7 @@
             if (
                 isRecordingVoice
             ) {
+
                 return;
             }
 
@@ -3241,6 +3429,7 @@
                 !mediaRecorder ||
                 !isRecordingVoice
             ) {
+
                 return;
             }
 
@@ -3365,6 +3554,7 @@
             if (
                 !getToken()
             ) {
+
                 return;
             }
 
@@ -3408,7 +3598,8 @@
                     return;
                 }
 
-                musicList.innerHTML = "";
+                musicList.innerHTML =
+                    "";
 
                 tracks.forEach(
                     track => {
@@ -3501,14 +3692,9 @@
                 getToken();
 
             if (!token) {
+
                 return;
             }
-
-            /*
-             * The music endpoint is authenticated.
-             * We fetch the file with the bearer token first,
-             * then play it as a browser blob.
-             */
 
             apiFetch(
                 `/api/music/file/${encodeURIComponent(filename)}`
@@ -3545,9 +3731,6 @@
                             new Audio(
                                 url
                             );
-
-                        currentAudio.controls =
-                            true;
 
                         currentAudio.play();
 
@@ -3631,7 +3814,8 @@
                             track.stop()
                     );
 
-                mediaStream = null;
+                mediaStream =
+                    null;
             }
 
             cameraVideo.srcObject =
@@ -3679,6 +3863,7 @@
                 blob => {
 
                     if (!blob) {
+
                         return;
                     }
 
@@ -3725,6 +3910,308 @@
 
 
         /* ============================================================
+           CHANGE PASSWORD
+           ============================================================ */
+
+        function openChangePassword() {
+
+            if (!getToken()) {
+
+                showToast(
+                    "Please unlock MIAH first."
+                );
+
+                return;
+            }
+
+            currentPasswordInput.value =
+                "";
+
+            newPasswordInput.value =
+                "";
+
+            confirmNewPasswordInput.value =
+                "";
+
+            changePasswordMessage.textContent =
+                "";
+
+            changePasswordMessage.className =
+                "password-message";
+
+            changePasswordModal.classList.remove(
+                "hidden"
+            );
+
+            setTimeout(
+                () => {
+                    currentPasswordInput.focus();
+                },
+                50
+            );
+
+            sidebar.classList.remove(
+                "open"
+            );
+        }
+
+
+        function closeChangePassword() {
+
+            changePasswordModal.classList.add(
+                "hidden"
+            );
+
+            currentPasswordInput.value =
+                "";
+
+            newPasswordInput.value =
+                "";
+
+            confirmNewPasswordInput.value =
+                "";
+
+            changePasswordMessage.textContent =
+                "";
+
+            changePasswordMessage.className =
+                "password-message";
+
+            saveNewPasswordButton.disabled =
+                false;
+
+            saveNewPasswordButton.textContent =
+                "Change password";
+        }
+
+
+        async function changePassword() {
+
+            const currentPassword =
+                currentPasswordInput.value;
+
+            const newPassword =
+                newPasswordInput.value;
+
+            const confirmNewPassword =
+                confirmNewPasswordInput.value;
+
+            changePasswordMessage.textContent =
+                "";
+
+            changePasswordMessage.className =
+                "password-message";
+
+            if (!currentPassword) {
+
+                changePasswordMessage.textContent =
+                    "Enter your current password.";
+
+                changePasswordMessage.classList.add(
+                    "error"
+                );
+
+                currentPasswordInput.focus();
+
+                return;
+            }
+
+            if (!newPassword) {
+
+                changePasswordMessage.textContent =
+                    "Enter a new password.";
+
+                changePasswordMessage.classList.add(
+                    "error"
+                );
+
+                newPasswordInput.focus();
+
+                return;
+            }
+
+            if (
+                newPassword.length < 4
+            ) {
+
+                changePasswordMessage.textContent =
+                    "The new password must contain at least 4 characters.";
+
+                changePasswordMessage.classList.add(
+                    "error"
+                );
+
+                newPasswordInput.focus();
+
+                return;
+            }
+
+            if (
+                newPassword !==
+                confirmNewPassword
+            ) {
+
+                changePasswordMessage.textContent =
+                    "The new passwords do not match.";
+
+                changePasswordMessage.classList.add(
+                    "error"
+                );
+
+                confirmNewPasswordInput.focus();
+
+                return;
+            }
+
+            if (
+                currentPassword ===
+                newPassword
+            ) {
+
+                changePasswordMessage.textContent =
+                    "The new password must be different from the current password.";
+
+                changePasswordMessage.classList.add(
+                    "error"
+                );
+
+                return;
+            }
+
+            saveNewPasswordButton.disabled =
+                true;
+
+            saveNewPasswordButton.textContent =
+                "Changing...";
+
+            try {
+
+                const response =
+                    await apiFetch(
+                        "/api/change-password",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify({
+                                current_password:
+                                    currentPassword,
+
+                                new_password:
+                                    newPassword,
+
+                                confirm_password:
+                                    confirmNewPassword
+                            })
+                        }
+                    );
+
+                let data = {};
+
+                try {
+
+                    data =
+                        await response.json();
+
+                } catch {
+
+                    data = {};
+                }
+
+                if (!response.ok) {
+
+                    if (
+                        response.status === 401
+                    ) {
+
+                        clearToken();
+
+                        closeChangePassword();
+
+                        showOnlyScreen(
+                            loginScreen
+                        );
+
+                        loginMessage.textContent =
+                            "Your session expired. Please unlock MIAH again.";
+
+                        return;
+                    }
+
+                    throw new Error(
+                        data.error ||
+                        "Could not change your password."
+                    );
+                }
+
+                if (data.token) {
+
+                    setToken(
+                        data.token
+                    );
+                }
+
+                changePasswordMessage.textContent =
+                    data.message ||
+                    "Password changed successfully.";
+
+                changePasswordMessage.classList.add(
+                    "success"
+                );
+
+                currentPasswordInput.value =
+                    "";
+
+                newPasswordInput.value =
+                    "";
+
+                confirmNewPasswordInput.value =
+                    "";
+
+                showToast(
+                    "MIAH password changed."
+                );
+
+                setTimeout(
+                    () => {
+
+                        closeChangePassword();
+
+                    },
+                    1200
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Change password error:",
+                    error
+                );
+
+                changePasswordMessage.textContent =
+                    error.message ||
+                    "Could not change your password.";
+
+                changePasswordMessage.classList.add(
+                    "error"
+                );
+
+            } finally {
+
+                saveNewPasswordButton.disabled =
+                    false;
+
+                saveNewPasswordButton.textContent =
+                    "Change password";
+            }
+        }
+
+
+        /* ============================================================
            LOGOUT
            ============================================================ */
 
@@ -3750,7 +4237,12 @@
                 } catch {}
             }
 
-            speechSynthesis.cancel();
+            if (
+                "speechSynthesis" in window
+            ) {
+
+                speechSynthesis.cancel();
+            }
 
             showOnlyScreen(
                 loginScreen
@@ -3808,6 +4300,7 @@
             createPassword
         );
 
+
         setupPasswordConfirm.addEventListener(
             "keydown",
             event => {
@@ -3815,10 +4308,12 @@
                 if (
                     event.key === "Enter"
                 ) {
+
                     createPassword();
                 }
             }
         );
+
 
         setupPassword.addEventListener(
             "keydown",
@@ -3827,6 +4322,7 @@
                 if (
                     event.key === "Enter"
                 ) {
+
                     createPassword();
                 }
             }
@@ -3846,6 +4342,7 @@
                 if (
                     event.key === "Enter"
                 ) {
+
                     login();
                 }
             }
@@ -3903,7 +4400,6 @@
                 } else {
 
                     startVoiceRecording();
-
                 }
             }
         );
@@ -4103,10 +4599,133 @@
                     } else {
 
                         stopVoiceRecording();
-
                     }
                 }
             );
+
+
+        /* ============================================================
+           CHANGE PASSWORD EVENTS
+           ============================================================ */
+
+        changePasswordButton.addEventListener(
+            "click",
+            openChangePassword
+        );
+
+
+        closeChangePasswordButton.addEventListener(
+            "click",
+            closeChangePassword
+        );
+
+
+        cancelChangePasswordButton.addEventListener(
+            "click",
+            closeChangePassword
+        );
+
+
+        saveNewPasswordButton.addEventListener(
+            "click",
+            changePassword
+        );
+
+
+        currentPasswordInput.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter"
+                ) {
+
+                    newPasswordInput.focus();
+                }
+            }
+        );
+
+
+        newPasswordInput.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter"
+                ) {
+
+                    confirmNewPasswordInput.focus();
+                }
+            }
+        );
+
+
+        confirmNewPasswordInput.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter"
+                ) {
+
+                    changePassword();
+                }
+            }
+        );
+
+
+        changePasswordModal.addEventListener(
+            "click",
+            event => {
+
+                if (
+                    event.target ===
+                    changePasswordModal
+                ) {
+
+                    closeChangePassword();
+                }
+            }
+        );
+
+
+        document.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Escape"
+                ) {
+
+                    if (
+                        !changePasswordModal.classList.contains(
+                            "hidden"
+                        )
+                    ) {
+
+                        closeChangePassword();
+
+                    } else if (
+                        !infoModal.classList.contains(
+                            "hidden"
+                        )
+                    ) {
+
+                        infoModal.classList.add(
+                            "hidden"
+                        );
+
+                    } else if (
+                        !cameraModal.classList.contains(
+                            "hidden"
+                        )
+                    ) {
+
+                        closeCamera();
+                    }
+                }
+            }
+        );
 
 
         /* ============================================================
