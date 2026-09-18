@@ -1074,3 +1074,28 @@ def maker_status():
             "maker": True,
         }
     )
+
+
+# ======================================================================
+# MAKER — CONVERSATION HISTORY
+# ======================================================================
+@app.route(
+    "/api/maker/status",
+    methods=["GET"],
+)
+def maker_status():
+
+    if not _require_maker():
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Maker authentication required.",
+            }
+        ), 401
+
+    return jsonify(
+        {
+            "ok": True,
+            "maker": True,
+        }
+    )
