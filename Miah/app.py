@@ -1167,5 +1167,5 @@ def change_password():
 )
 def maker_status():
 
-    if not _require_maker()
+    if not _require_maker():
 
