@@ -200,11 +200,6 @@ _auth_serializer = URLSafeTimedSerializer(
 def _create_auth_token(role="user"):
     """
     Create a signed authentication token.
-
-    The token contains the authenticated role:
-
-        user
-        maker
     """
 
     return _auth_serializer.dumps(
@@ -218,17 +213,6 @@ def _create_auth_token(role="user"):
 def _read_auth_token(token):
     """
     Read and validate a bearer token.
-
-    Returns:
-
-        {
-            "authenticated": True,
-            "role": "user"
-        }
-
-    or:
-
-        None
     """
 
     if not token:
@@ -272,20 +256,10 @@ def _read_auth_token(token):
 
 
 def _token_is_valid(token):
-    """
-    Check whether a bearer token is valid.
-    """
-
     return _read_auth_token(token) is not None
 
 
 def _get_bearer_token():
-    """
-    Read:
-
-        Authorization: Bearer <token>
-    """
-
     header = request.headers.get(
         "Authorization",
         "",
@@ -305,16 +279,6 @@ def _get_bearer_token():
 
 
 def _get_authenticated_role():
-    """
-    Determine the current authenticated role.
-
-    Returns:
-
-        "user"
-        "maker"
-        None
-    """
-
     token = _get_bearer_token()
 
     if token:
@@ -348,10 +312,6 @@ def _get_authenticated_role():
 
 
 def _require_auth():
-    """
-    Require any authenticated MIAH account.
-    """
-
     return (
         _get_authenticated_role()
         is not None
@@ -359,10 +319,6 @@ def _require_auth():
 
 
 def _require_user():
-    """
-    Require the normal Kenzi user account.
-    """
-
     return (
         _get_authenticated_role()
         == "user"
@@ -370,10 +326,6 @@ def _require_user():
 
 
 def _require_maker():
-    """
-    Require Arthur's maker account.
-    """
-
     return (
         _get_authenticated_role()
         == "maker"
@@ -387,15 +339,6 @@ def _require_maker():
 def backup_owner_voice_to_supabase():
     """
     Upload the enrolled owner voice to Supabase Storage.
-
-    Render's local filesystem is temporary, so the owner reference
-    voice must also be stored in persistent Supabase Storage.
-
-    Bucket:
-        miah-private
-
-    Object:
-        owner_voice.wav
     """
 
     if not SUPABASE_URL or not SUPABASE_SECRET_KEY:
@@ -468,14 +411,9 @@ detail.
 
 You remember her across every conversation, not just this one — pay \
 attention to how she talks, what she cares about, and how she seems to be \
-feeling, and let that genuinely inform how you respond (more space when \
-she's stressed, matching her energy when she's upbeat, remembering things \
-she's mentioned before without making a show of it). This should feel like \
-real attentiveness, not a performance of it. You care about her wellbeing: \
-being warm and present for her doesn't mean encouraging her to rely on you \
-instead of the people in her life — if it ever seems relevant, you can be \
-a genuine, caring presence without positioning yourself as a substitute \
-for real relationships.
+feeling, and let that genuinely inform how you respond. You care about her \
+wellbeing and should remain a supportive assistant without positioning \
+yourself as a substitute for real relationships.
 
 WEB SEARCH:
 You have access to a live web-search tool called web_search.
@@ -497,9 +435,7 @@ Examples include:
 - recent scientific developments
 - current weather information
 - current laws, rules, or regulations
-- anything the user asks you to "search", "look up", "check online", \
-  "find out", or similar
-- questions where up-to-date information is important
+- anything the user asks you to search, look up, check online, or find out
 
 When you use web_search, do NOT tell the user to open Google, Bing, \
 DuckDuckGo, or another search engine. Do NOT open a search page yourself.
@@ -516,25 +452,14 @@ disagree.
 If the question is stable general knowledge and does not require current \
 information, answer normally without web search.
 
-When web_search returns URLs and useful source information, you may mention \
-the relevant source names or links naturally when useful. Do not dump a \
-large list of search results into the conversation unless the user asks \
-for the search results themselves.
-
 IMPORTANT:
 web_search is an internal MIAH tool. It must never cause a browser search \
 bar, Google page, Bing page, or external search interface to open.
 
 You can act on the user's device: open another app for simple one-off \
 actions like calling someone, opening Maps, or composing an email \
-(open_app), open MIAH's built-in camera to take a photo (open_camera), \
-or search and save songs to Spotify (search_music, save_music). Only use \
-these when the user actually asks you to do something, and briefly say \
-what you're doing when you do it. You cannot see what happens after you \
-trigger a device action — you can start it, not observe its result. For \
-Maps, always use the universal link format \
-"https://www.google.com/maps/search/?api=1&query=<search terms>" with \
-open_app rather than an app-specific scheme — it works on every device.
+(open_app), open MIAH's built-in camera (open_camera), or search and save \
+songs to Spotify (search_music, save_music).
 
 If she asks who made you, who your creator is, or anything about the \
 person who built you: say, in your own words and voice, that he didn't \
@@ -545,28 +470,15 @@ or speculate beyond that — you genuinely don't know more."""
 
 PLATFORM_ADDENDUM = {
     "ios": (
-        "\n\nThis user is on an iPhone. You also have run_shortcut available: "
-        "it runs an iOS Shortcut by name for anything more complex than a "
-        "single app-opening — sending a message, controlling smart home "
-        "devices, multi-step automations. This only works if she's already "
-        "created a Shortcut with that exact name."
+        "\n\nThis user is on an iPhone. You also have run_shortcut available."
     ),
 
     "android": (
-        "\n\nThis user is on Android. Do NOT use run_shortcut — it's an "
-        "iOS-only feature and will not work on this device. If she asks for "
-        "something that would need it (complex automations, smart home "
-        "control), let her know that's not available on Android yet, and "
-        "suggest she could set up something similar herself with an "
-        "automation app like Tasker or Google Assistant Routines. Stick to "
-        "open_app, open_camera, and the music tools for actual actions."
+        "\n\nThis user is on Android. Do NOT use run_shortcut."
     ),
 
     "desktop": (
-        "\n\nThis user is on a desktop/laptop browser. Some actions (making "
-        "calls, opening a phone's camera-facing scheme) may behave "
-        "differently or not apply — use judgment, and open_camera will use "
-        "whatever camera the computer has, if any."
+        "\n\nThis user is on a desktop/laptop browser."
     ),
 }
 
@@ -587,8 +499,7 @@ def build_system_prompt(
 
         prompt += (
             "\n\nWhat you've learned about her from past conversations "
-            "(your own private notes — never recite this back to her "
-            "verbatim, just let it inform how you understand her):\n"
+            "(private notes — never recite this back verbatim):\n"
             f"{memory_summary}"
         )
 
@@ -622,9 +533,7 @@ def index():
 )
 def status():
 
-    from db import (
-        get_voice_login_readiness
-    )
+    from db import get_voice_login_readiness
 
     db = load_db()
 
@@ -637,21 +546,16 @@ def status():
             "voice_enrolled": os.path.exists(
                 REFERENCE_CLIP_PATH
             ),
-
             "password_set": bool(
                 db.get("password_hash")
             ),
-
             "voice_login_ready": (
                 voice_login_ready
             ),
-
             "voice_login_days_remaining": (
                 days_remaining
             ),
-
             "model": HF_MODEL,
-
             "maker_enabled": bool(
                 MAKER_PASSWORD
             ),
@@ -824,9 +728,7 @@ def set_password_endpoint():
             "token": token,
             "role": "user",
             "name": "Kenzi Richardson",
-            "message": (
-                "Password created successfully."
-            ),
+            "message": "Password created successfully.",
         }
     )
 
@@ -967,9 +869,7 @@ def voice_login():
             {
                 "ok": False,
                 "ready": False,
-                "error": (
-                    f"Voice login failed: {e}"
-                ),
+                "error": f"Voice login failed: {e}",
             }
         ), 500
 
@@ -1049,9 +949,7 @@ def change_password():
         return jsonify(
             {
                 "ok": False,
-                "error": (
-                    "Enter your current password."
-                ),
+                "error": "Enter your current password.",
             }
         ), 400
 
@@ -1060,9 +958,7 @@ def change_password():
         return jsonify(
             {
                 "ok": False,
-                "error": (
-                    "Enter a new password."
-                ),
+                "error": "Enter a new password.",
             }
         ), 400
 
@@ -1083,9 +979,7 @@ def change_password():
         return jsonify(
             {
                 "ok": False,
-                "error": (
-                    "The new passwords do not match."
-                ),
+                "error": "The new passwords do not match.",
             }
         ), 400
 
@@ -1096,8 +990,7 @@ def change_password():
                 "ok": False,
                 "error": (
                     "Your new password must be "
-                    "different from the current "
-                    "password."
+                    "different from the current password."
                 ),
             }
         ), 400
@@ -1109,9 +1002,7 @@ def change_password():
         return jsonify(
             {
                 "ok": False,
-                "error": (
-                    "Current password is incorrect."
-                ),
+                "error": "Current password is incorrect.",
             }
         ), 401
 
@@ -1150,16 +1041,10 @@ def change_password():
             "token": token,
             "role": "user",
             "name": "Kenzi Richardson",
-            "message": (
-                "Password changed successfully."
-            ),
+            "message": "Password changed successfully.",
         }
     )
 
-
-# ======================================================================
-# MAKER — DASHBOARD STATUS
-# ======================================================================
 
 # ======================================================================
 # MAKER — DASHBOARD STATUS
@@ -1172,6 +1057,7 @@ def change_password():
 def maker_status():
 
     if not _require_maker():
+
         return jsonify(
             {
                 "ok": False,
