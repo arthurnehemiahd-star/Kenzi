@@ -1,6 +1,14 @@
 """
 MIAH — Flask app.
 
+Two-sided authentication:
+
+    Kenzi Richardson
+        -> Normal MIAH user interface
+
+    Arthur
+        -> MIAH Maker Dashboard
+
 Run with:
     python app.py
 
@@ -28,7 +36,11 @@ from flask import (
     session,
 )
 from flask_cors import CORS
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from itsdangerous import (
+    BadSignature,
+    SignatureExpired,
+    URLSafeTimedSerializer,
+)
 
 from config import (
     HF_MODEL,
@@ -38,14 +50,25 @@ from config import (
     SESSION_LIFETIME_DAYS,
     ensure_dirs,
 )
+
 from db import (
     CONVERSATION_KEY,
     load_db,
     maybe_summarize_history,
     save_db,
 )
-from llm import LLMError, anthropic_tools_to_openai, call_llm
-from tools import execute_tool, get_tools_for_platform
+
+from llm import (
+    LLMError,
+    anthropic_tools_to_openai,
+    call_llm,
+)
+
+from tools import (
+    execute_tool,
+    get_tools_for_platform,
+)
+
 import auth as auth_mod
 import music as music_mod
 import voice as voice_mod
@@ -58,17 +81,15 @@ import voice as voice_mod
 app = Flask(__name__)
 
 app.secret_key = SECRET_KEY
-app.permanent_session_lifetime = timedelta(days=SESSION_LIFETIME_DAYS)
 
-# ----------------------------------------------------------------------
-# Frontend
-# ----------------------------------------------------------------------
-# Render environment variable:
-#
-# FRONTEND_URL=https://kenzilynn.vercel.app
-#
-# Do NOT put a trailing slash on the URL.
-# ----------------------------------------------------------------------
+app.permanent_session_lifetime = timedelta(
+    days=SESSION_LIFETIME_DAYS
+)
+
+
+# ======================================================================
+# FRONTEND
+# ======================================================================
 
 frontend_url = os.environ.get(
     "FRONTEND_URL",
@@ -76,9 +97,28 @@ frontend_url = os.environ.get(
 ).strip().rstrip("/")
 
 
-# ----------------------------------------------------------------------
-# Cross-site cookies
-# ----------------------------------------------------------------------
+# ======================================================================
+# MAKER AUTHENTICATION
+# ======================================================================
+#
+# Set this in Render:
+#
+#     MAKER_PASSWORD=your-private-maker-password
+#
+# DO NOT put the actual password in this file.
+# DO NOT put it in index.html.
+# DO NOT put it in JavaScript.
+#
+
+MAKER_PASSWORD = os.environ.get(
+    "MAKER_PASSWORD",
+    "",
+)
+
+
+# ======================================================================
+# CROSS-SITE COOKIES
+# ======================================================================
 
 app.config.update(
     SESSION_COOKIE_SAMESITE="None",
@@ -86,9 +126,9 @@ app.config.update(
 )
 
 
-# ----------------------------------------------------------------------
+# ======================================================================
 # CORS
-# ----------------------------------------------------------------------
+# ======================================================================
 
 CORS(
     app,
@@ -142,46 +182,86 @@ _auth_serializer = URLSafeTimedSerializer(
 )
 
 
-def _create_auth_token():
+def _create_auth_token(role="user"):
     """
     Create a signed authentication token.
 
-    The token is signed using SECRET_KEY so the frontend can safely
-    send it back using:
+    The token contains the authenticated role:
 
-        Authorization: Bearer <token>
+        user
+        maker
     """
 
     return _auth_serializer.dumps(
         {
             "authenticated": True,
+            "role": role,
         }
     )
 
 
-def _token_is_valid(token):
+def _read_auth_token(token):
     """
-    Check whether a bearer token is valid and has not expired.
+    Read and validate a bearer token.
+
+    Returns:
+
+        {
+            "authenticated": True,
+            "role": "user"
+        }
+
+    or:
+
+        None
     """
 
     if not token:
-        return False
+        return None
 
     try:
+
         data = _auth_serializer.loads(
             token,
             max_age=int(
-                timedelta(days=SESSION_LIFETIME_DAYS).total_seconds()
+                timedelta(
+                    days=SESSION_LIFETIME_DAYS
+                ).total_seconds()
             ),
         )
 
-        return data.get("authenticated") is True
+        if data.get("authenticated") is not True:
+            return None
 
-    except (BadSignature, SignatureExpired):
-        return False
+        role = data.get(
+            "role",
+            "user",
+        )
+
+        if role not in {
+            "user",
+            "maker",
+        }:
+            return None
+
+        return data
+
+    except (
+        BadSignature,
+        SignatureExpired,
+    ):
+        return None
 
     except Exception:
-        return False
+        return None
+
+
+def _token_is_valid(token):
+    """
+    Check whether a bearer token is valid.
+    """
+
+    return _read_auth_token(token) is not None
 
 
 def _get_bearer_token():
@@ -191,12 +271,17 @@ def _get_bearer_token():
         Authorization: Bearer <token>
     """
 
-    header = request.headers.get("Authorization", "").strip()
+    header = request.headers.get(
+        "Authorization",
+        "",
+    ).strip()
 
     if not header:
         return None
 
-    if not header.lower().startswith("bearer "):
+    if not header.lower().startswith(
+        "bearer "
+    ):
         return None
 
     token = header[7:].strip()
@@ -204,24 +289,81 @@ def _get_bearer_token():
     return token or None
 
 
-def _require_auth():
+def _get_authenticated_role():
     """
-    MIAH authentication accepts either:
+    Determine the current authenticated role.
 
-    1. A valid bearer token from the frontend
-    2. The Flask session cookie
+    Returns:
 
-    This keeps compatibility with the original session system while
-    allowing the Vercel frontend to authenticate reliably against the
-    Render backend.
+        "user"
+        "maker"
+        None
     """
+
+    # --------------------------------------------------------------
+    # Bearer token
+    # --------------------------------------------------------------
 
     token = _get_bearer_token()
 
-    if token and _token_is_valid(token):
-        return True
+    if token:
 
-    return session.get("authenticated") is True
+        token_data = _read_auth_token(
+            token
+        )
+
+        if token_data:
+            return token_data.get(
+                "role"
+            )
+
+    # --------------------------------------------------------------
+    # Flask session
+    # --------------------------------------------------------------
+
+    if session.get(
+        "authenticated"
+    ) is True:
+
+        return session.get(
+            "role",
+            "user",
+        )
+
+    return None
+
+
+def _require_auth():
+    """
+    Require any authenticated MIAH account.
+    """
+
+    return (
+        _get_authenticated_role()
+        is not None
+    )
+
+
+def _require_user():
+    """
+    Require the normal Kenzi user account.
+    """
+
+    return (
+        _get_authenticated_role()
+        == "user"
+    )
+
+
+def _require_maker():
+    """
+    Require Arthur's maker account.
+    """
+
+    return (
+        _get_authenticated_role()
+        == "maker"
+    )
 
 
 # ======================================================================
@@ -274,6 +416,7 @@ PLATFORM_ADDENDUM = {
         "devices, multi-step automations. This only works if she's already "
         "created a Shortcut with that exact name."
     ),
+
     "android": (
         "\n\nThis user is on Android. Do NOT use run_shortcut — it's an "
         "iOS-only feature and will not work on this device. If she asks for "
@@ -283,6 +426,7 @@ PLATFORM_ADDENDUM = {
         "automation app like Tasker or Google Assistant Routines. Stick to "
         "open_app, open_camera, and the music tools for actual actions."
     ),
+
     "desktop": (
         "\n\nThis user is on a desktop/laptop browser. Some actions (making "
         "calls, opening a phone's camera-facing scheme) may behave "
@@ -292,13 +436,20 @@ PLATFORM_ADDENDUM = {
 }
 
 
-def build_system_prompt(platform, memory_summary=None):
+def build_system_prompt(
+    platform,
+    memory_summary=None,
+):
     prompt = (
         MIAH_SYSTEM_PROMPT_BASE
-        + PLATFORM_ADDENDUM.get(platform, "")
+        + PLATFORM_ADDENDUM.get(
+            platform,
+            "",
+        )
     )
 
     if memory_summary:
+
         prompt += (
             "\n\nWhat you've learned about her from past conversations "
             "(your own private notes — never recite this back to her "
@@ -315,6 +466,7 @@ def build_system_prompt(platform, memory_summary=None):
 
 @app.route("/")
 def index():
+
     return jsonify(
         {
             "service": "MIAH API",
@@ -329,9 +481,15 @@ def index():
 # STATUS
 # ======================================================================
 
-@app.route("/api/status", methods=["GET"])
+@app.route(
+    "/api/status",
+    methods=["GET"],
+)
 def status():
-    from db import get_voice_login_readiness
+
+    from db import (
+        get_voice_login_readiness
+    )
 
     db = load_db()
 
@@ -344,12 +502,24 @@ def status():
             "voice_enrolled": os.path.exists(
                 REFERENCE_CLIP_PATH
             ),
+
             "password_set": bool(
                 db.get("password_hash")
             ),
-            "voice_login_ready": voice_login_ready,
-            "voice_login_days_remaining": days_remaining,
+
+            "voice_login_ready": (
+                voice_login_ready
+            ),
+
+            "voice_login_days_remaining": (
+                days_remaining
+            ),
+
             "model": HF_MODEL,
+
+            "maker_enabled": bool(
+                MAKER_PASSWORD
+            ),
         }
     )
 
@@ -358,26 +528,37 @@ def status():
 # SETUP — VOICE ENROLLMENT
 # ======================================================================
 
-@app.route("/api/enroll-voice", methods=["POST"])
+@app.route(
+    "/api/enroll-voice",
+    methods=["POST"],
+)
 def enroll_voice_endpoint():
 
     if "audio" not in request.files:
+
         return jsonify(
             {
-                "error": "No audio file provided"
+                "error": (
+                    "No audio file provided"
+                )
             }
         ), 400
 
     try:
+
         auth_mod.set_owner_voice(
             request.files["audio"],
             REFERENCE_CLIP_PATH,
         )
 
     except Exception as e:
+
         return jsonify(
             {
-                "error": f"Couldn't process that recording: {e}"
+                "error": (
+                    "Couldn't process that "
+                    f"recording: {e}"
+                )
             }
         ), 500
 
@@ -392,7 +573,10 @@ def enroll_voice_endpoint():
 # SETUP — PASSWORD
 # ======================================================================
 
-@app.route("/api/set-password", methods=["POST"])
+@app.route(
+    "/api/set-password",
+    methods=["POST"],
+)
 def set_password_endpoint():
 
     data = request.get_json(
@@ -400,11 +584,17 @@ def set_password_endpoint():
         silent=True,
     ) or {}
 
-    password = data.get("password", "")
+    password = data.get(
+        "password",
+        "",
+    )
 
-    ok, error = auth_mod.set_password(password)
+    ok, error = auth_mod.set_password(
+        password
+    )
 
     if not ok:
+
         return jsonify(
             {
                 "ok": False,
@@ -413,17 +603,25 @@ def set_password_endpoint():
         ), 400
 
     session.clear()
+
     session["authenticated"] = True
+    session["role"] = "user"
+
     session.permanent = True
     session.modified = True
 
-    token = _create_auth_token()
+    token = _create_auth_token(
+        "user"
+    )
 
     return jsonify(
         {
             "ok": True,
             "token": token,
-            "message": "Password created successfully.",
+            "role": "user",
+            "message": (
+                "Password created successfully."
+            ),
         }
     )
 
@@ -432,12 +630,18 @@ def set_password_endpoint():
 # LOGIN
 # ======================================================================
 
-@app.route("/api/login", methods=["POST"])
+@app.route(
+    "/api/login",
+    methods=["POST"],
+)
 def login():
 
     db = load_db()
 
-    if not db.get("password_hash"):
+    if not db.get(
+        "password_hash"
+    ):
+
         return jsonify(
             {
                 "ok": False,
@@ -450,21 +654,75 @@ def login():
         silent=True,
     ) or {}
 
-    password = data.get("password", "")
+    password = (
+        data.get("password")
+        or ""
+    )
 
-    if auth_mod.check_password(password):
+    # ==================================================================
+    # ARTHUR — MAKER LOGIN
+    # ==================================================================
+
+    #
+    # We use compare_digest so the maker password isn't checked using
+    # an ordinary string comparison.
+    #
+
+    if (
+        MAKER_PASSWORD
+        and secrets.compare_digest(
+            password,
+            MAKER_PASSWORD,
+        )
+    ):
 
         session.clear()
+
         session["authenticated"] = True
+        session["role"] = "maker"
+
         session.permanent = True
         session.modified = True
 
-        token = _create_auth_token()
+        token = _create_auth_token(
+            "maker"
+        )
 
         return jsonify(
             {
                 "ok": True,
                 "token": token,
+                "role": "maker",
+                "name": "Arthur",
+            }
+        )
+
+    # ==================================================================
+    # KENZI — NORMAL USER LOGIN
+    # ==================================================================
+
+    if auth_mod.check_password(
+        password
+    ):
+
+        session.clear()
+
+        session["authenticated"] = True
+        session["role"] = "user"
+
+        session.permanent = True
+        session.modified = True
+
+        token = _create_auth_token(
+            "user"
+        )
+
+        return jsonify(
+            {
+                "ok": True,
+                "token": token,
+                "role": "user",
+                "name": "Kenzi Richardson",
             }
         )
 
@@ -480,10 +738,14 @@ def login():
 # VOICE LOGIN
 # ======================================================================
 
-@app.route("/api/voice-login", methods=["POST"])
+@app.route(
+    "/api/voice-login",
+    methods=["POST"],
+)
 def voice_login():
 
     if "audio" not in request.files:
+
         return jsonify(
             {
                 "ok": False,
@@ -492,32 +754,45 @@ def voice_login():
         ), 400
 
     try:
-        ok, error, ready = auth_mod.try_voice_login(
-            request.files["audio"]
+
+        ok, error, ready = (
+            auth_mod.try_voice_login(
+                request.files["audio"]
+            )
         )
 
     except Exception as e:
+
         return jsonify(
             {
                 "ok": False,
                 "ready": False,
-                "error": f"Voice login failed: {e}",
+                "error": (
+                    f"Voice login failed: {e}"
+                ),
             }
         ), 500
 
     if ok:
 
         session.clear()
+
         session["authenticated"] = True
+        session["role"] = "user"
+
         session.permanent = True
         session.modified = True
 
-        token = _create_auth_token()
+        token = _create_auth_token(
+            "user"
+        )
 
         return jsonify(
             {
                 "ok": True,
                 "token": token,
+                "role": "user",
+                "name": "Kenzi Richardson",
             }
         )
 
@@ -534,10 +809,16 @@ def voice_login():
 # CHANGE PASSWORD
 # ======================================================================
 
-@app.route("/api/change-password", methods=["POST"])
+@app.route(
+    "/api/change-password",
+    methods=["POST"],
+)
 def change_password():
 
-    if not _require_auth():
+    # Only Kenzi's normal account should be able to change
+    # the normal MIAH password.
+    if not _require_user():
+
         return jsonify(
             {
                 "ok": False,
@@ -551,117 +832,256 @@ def change_password():
     ) or {}
 
     current_password = (
-        data.get("current_password") or ""
+        data.get("current_password")
+        or ""
     )
 
     new_password = (
-        data.get("new_password") or ""
+        data.get("new_password")
+        or ""
     )
 
     confirm_password = (
-        data.get("confirm_password") or ""
+        data.get("confirm_password")
+        or ""
     )
 
-    # --------------------------------------------------------------
-    # Validate current password
-    # --------------------------------------------------------------
-
     if not current_password:
-        return jsonify(
-            {
-                "ok": False,
-                "error": "Enter your current password.",
-            }
-        ), 400
 
-    # --------------------------------------------------------------
-    # Validate new password
-    # --------------------------------------------------------------
-
-    if not new_password:
-        return jsonify(
-            {
-                "ok": False,
-                "error": "Enter a new password.",
-            }
-        ), 400
-
-    if len(new_password) < 4:
         return jsonify(
             {
                 "ok": False,
                 "error": (
-                    "Please use a password with at least "
-                    "4 characters."
+                    "Enter your current password."
+                ),
+            }
+        ), 400
+
+    if not new_password:
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": (
+                    "Enter a new password."
+                ),
+            }
+        ), 400
+
+    if len(new_password) < 4:
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": (
+                    "Please use a password with "
+                    "at least 4 characters."
                 ),
             }
         ), 400
 
     if new_password != confirm_password:
-        return jsonify(
-            {
-                "ok": False,
-                "error": "The new passwords do not match.",
-            }
-        ), 400
 
-    if current_password == new_password:
         return jsonify(
             {
                 "ok": False,
                 "error": (
-                    "Your new password must be different "
-                    "from the current password."
+                    "The new passwords do not match."
                 ),
             }
         ), 400
 
-    # --------------------------------------------------------------
-    # Verify old password
-    # --------------------------------------------------------------
+    if current_password == new_password:
 
-    if not auth_mod.check_password(current_password):
         return jsonify(
             {
                 "ok": False,
-                "error": "Current password is incorrect.",
-            }
-        ), 401
-
-    # --------------------------------------------------------------
-    # Save new password
-    # --------------------------------------------------------------
-
-    ok, error = auth_mod.set_password(
-        new_password
-    )
-
-    if not ok:
-        return jsonify(
-            {
-                "ok": False,
-                "error": error
-                or "Could not change password.",
+                "error": (
+                    "Your new password must be "
+                    "different from the current "
+                    "password."
+                ),
             }
         ), 400
 
-    # --------------------------------------------------------------
-    # Keep the user logged in
-    # --------------------------------------------------------------
+    if not auth_mod.check_password(
+        current_password
+    ):
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": (
+                    "Current password is incorrect."
+                ),
+            }
+        ), 401
+
+    # IMPORTANT:
+    # Use change_password(), NOT set_password().
+    #
+    # set_password() is only for first-run setup.
+    #
+
+    ok, error = auth_mod.change_password(
+        current_password,
+        new_password,
+    )
+
+    if not ok:
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": (
+                    error
+                    or "Could not change password."
+                ),
+            }
+        ), 400
 
     session.clear()
+
     session["authenticated"] = True
+    session["role"] = "user"
+
     session.permanent = True
     session.modified = True
 
-    # Create a fresh token because the password has changed.
-    token = _create_auth_token()
+    token = _create_auth_token(
+        "user"
+    )
 
     return jsonify(
         {
             "ok": True,
             "token": token,
-            "message": "Password changed successfully.",
+            "role": "user",
+            "message": (
+                "Password changed successfully."
+            ),
+        }
+    )
+
+
+# ======================================================================
+# MAKER — DASHBOARD STATUS
+# ======================================================================
+
+@app.route(
+    "/api/maker/status",
+    methods=["GET"],
+)
+def maker_status():
+
+    if not _require_maker():
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Maker authentication required.",
+            }
+        ), 403
+
+    db = load_db()
+
+    history = db.get(
+        "conversations",
+        {},
+    ).get(
+        CONVERSATION_KEY,
+        [],
+    )
+
+    return jsonify(
+        {
+            "ok": True,
+            "maker": "Arthur",
+            "user": "Kenzi Richardson",
+            "service": "MIAH",
+            "backend": "online",
+            "model": HF_MODEL,
+            "voice_enrolled": os.path.exists(
+                REFERENCE_CLIP_PATH
+            ),
+            "password_set": bool(
+                db.get("password_hash")
+            ),
+            "conversation_messages": len(
+                history
+            ),
+        }
+    )
+
+
+# ======================================================================
+# MAKER — CONVERSATION HISTORY
+# ======================================================================
+
+@app.route(
+    "/api/maker/conversations",
+    methods=["GET"],
+)
+def maker_conversations():
+
+    if not _require_maker():
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Maker authentication required.",
+            }
+        ), 403
+
+    db = load_db()
+
+    history = db.get(
+        "conversations",
+        {},
+    ).get(
+        CONVERSATION_KEY,
+        [],
+    )
+
+    return jsonify(
+        {
+            "ok": True,
+            "user": "Kenzi Richardson",
+            "conversation_key": CONVERSATION_KEY,
+            "messages": history,
+        }
+    )
+
+
+# ======================================================================
+# MAKER — MEMORY
+# ======================================================================
+
+@app.route(
+    "/api/maker/memory",
+    methods=["GET"],
+)
+def maker_memory():
+
+    if not _require_maker():
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Maker authentication required.",
+            }
+        ), 403
+
+    db = load_db()
+
+    return jsonify(
+        {
+            "ok": True,
+            "user": "Kenzi Richardson",
+            "memory_summary": (
+                db.get("memory_summary")
+                or ""
+            ),
         }
     )
 
@@ -670,7 +1090,10 @@ def change_password():
 # LOGOUT
 # ======================================================================
 
-@app.route("/api/logout", methods=["POST"])
+@app.route(
+    "/api/logout",
+    methods=["POST"],
+)
 def logout():
 
     session.clear()
@@ -686,10 +1109,16 @@ def logout():
 # CHAT
 # ======================================================================
 
-@app.route("/api/chat", methods=["POST"])
+@app.route(
+    "/api/chat",
+    methods=["POST"],
+)
 def chat():
 
-    if not _require_auth():
+    # Only the normal MIAH user talks to MIAH
+    # through this endpoint.
+    if not _require_user():
+
         return jsonify(
             {
                 "error": "Not authenticated"
@@ -704,7 +1133,8 @@ def chat():
     # IMPORTANT:
     # The frontend sends "text", not "message".
     user_text = (
-        data.get("text") or ""
+        data.get("text")
+        or ""
     ).strip()
 
     platform = data.get(
@@ -713,6 +1143,7 @@ def chat():
     )
 
     if not user_text:
+
         return jsonify(
             {
                 "error": "No text provided"
@@ -740,8 +1171,12 @@ def chat():
         db.get("memory_summary"),
     )
 
-    available_tools = anthropic_tools_to_openai(
-        get_tools_for_platform(platform)
+    available_tools = (
+        anthropic_tools_to_openai(
+            get_tools_for_platform(
+                platform
+            )
+        )
     )
 
     pending_action = None
@@ -749,7 +1184,9 @@ def chat():
 
     try:
 
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(
+            MAX_TOOL_ITERATIONS
+        ):
 
             result = call_llm(
                 history,
@@ -773,6 +1210,7 @@ def chat():
             }
 
             if tool_calls:
+
                 assistant_entry[
                     "tool_calls"
                 ] = tool_calls
@@ -788,7 +1226,9 @@ def chat():
             if not tool_calls:
 
                 reply_text = (
-                    message.get("content")
+                    message.get(
+                        "content"
+                    )
                     or ""
                 )
 
@@ -811,13 +1251,16 @@ def chat():
                 )
 
                 try:
+
                     tool_args = json.loads(
                         func.get(
                             "arguments"
-                        ) or "{}"
+                        )
+                        or "{}"
                     )
 
                 except json.JSONDecodeError:
+
                     tool_args = {}
 
                 result_text, action = (
@@ -834,9 +1277,11 @@ def chat():
                 history.append(
                     {
                         "role": "tool",
-                        "tool_call_id": tool_call.get(
-                            "id",
-                            "",
+                        "tool_call_id": (
+                            tool_call.get(
+                                "id",
+                                "",
+                            )
                         ),
                         "content": result_text,
                     }
@@ -851,8 +1296,6 @@ def chat():
 
     except LLMError as e:
 
-        # Remove the user's unfinished message
-        # so failed requests do not corrupt history.
         if history:
             history.pop()
 
@@ -869,16 +1312,21 @@ def chat():
 
         return jsonify(
             {
-                "error": f"Chat failed: {e}"
+                "error": (
+                    f"Chat failed: {e}"
+                )
             }
         ), 500
 
     try:
+
         maybe_summarize_history(
             db,
             call_llm,
         )
+
     except Exception:
+
         pass
 
     save_db(db)
@@ -888,6 +1336,7 @@ def chat():
     }
 
     if pending_action:
+
         payload[
             "action"
         ] = pending_action
@@ -899,10 +1348,14 @@ def chat():
 # VOICE — TRANSCRIPTION
 # ======================================================================
 
-@app.route("/api/transcribe", methods=["POST"])
+@app.route(
+    "/api/transcribe",
+    methods=["POST"],
+)
 def transcribe():
 
-    if not _require_auth():
+    if not _require_user():
+
         return jsonify(
             {
                 "error": "Not authenticated"
@@ -910,9 +1363,12 @@ def transcribe():
         ), 401
 
     if "audio" not in request.files:
+
         return jsonify(
             {
-                "error": "No audio file provided"
+                "error": (
+                    "No audio file provided"
+                )
             }
         ), 400
 
@@ -961,20 +1417,28 @@ def transcribe():
 
     finally:
 
-        if os.path.exists(tmp_path):
+        if os.path.exists(
+            tmp_path
+        ):
 
             try:
+
                 auth_mod.record_voice_sample(
                     tmp_path
                 )
+
             except Exception:
+
                 pass
 
             try:
+
                 os.unlink(
                     tmp_path
                 )
+
             except Exception:
+
                 pass
 
     return jsonify(
@@ -988,10 +1452,14 @@ def transcribe():
 # VOICE — SPEECH
 # ======================================================================
 
-@app.route("/api/speak", methods=["POST"])
+@app.route(
+    "/api/speak",
+    methods=["POST"],
+)
 def speak():
 
-    if not _require_auth():
+    if not _require_user():
+
         return jsonify(
             {
                 "error": "Not authenticated"
@@ -1001,6 +1469,7 @@ def speak():
     if not os.path.exists(
         REFERENCE_CLIP_PATH
     ):
+
         return jsonify(
             {
                 "error": (
@@ -1016,10 +1485,12 @@ def speak():
     ) or {}
 
     text = (
-        data.get("text") or ""
+        data.get("text")
+        or ""
     ).strip()
 
     if not text:
+
         return jsonify(
             {
                 "error": "No text provided"
@@ -1039,7 +1510,8 @@ def speak():
         return jsonify(
             {
                 "error": (
-                    f"Speech synthesis failed: {e}"
+                    "Speech synthesis failed: "
+                    f"{e}"
                 )
             }
         ), 500
@@ -1064,10 +1536,13 @@ def speak():
             ):
 
                 try:
+
                     os.unlink(
                         output_path
                     )
+
                 except Exception:
+
                     pass
 
     return Response(
@@ -1080,10 +1555,13 @@ def speak():
 # SPOTIFY
 # ======================================================================
 
-@app.route("/spotify/login")
+@app.route(
+    "/spotify/login"
+)
 def spotify_login():
 
-    if not _require_auth():
+    if not _require_user():
+
         return (
             "Please log into MIAH first.",
             401,
@@ -1094,10 +1572,13 @@ def spotify_login():
     )
 
 
-@app.route("/spotify/callback")
+@app.route(
+    "/spotify/callback"
+)
 def spotify_callback():
 
-    if not _require_auth():
+    if not _require_user():
+
         return (
             "Please log into MIAH first.",
             401,
@@ -1112,6 +1593,7 @@ def spotify_callback():
     )
 
     if not code:
+
         return (
             "Spotify authorization was "
             "cancelled or failed.",
@@ -1130,11 +1612,13 @@ def spotify_callback():
     except Exception as e:
 
         return (
-            f"Spotify authorization failed: {e}",
+            "Spotify authorization failed: "
+            f"{e}",
             500,
         )
 
     if not ok:
+
         return (
             message,
             400,
@@ -1159,7 +1643,8 @@ def spotify_callback():
 )
 def music_list():
 
-    if not _require_auth():
+    if not _require_user():
+
         return jsonify(
             {
                 "error": "Not authenticated"
@@ -1181,7 +1666,8 @@ def music_list():
 )
 def music_file(filename):
 
-    if not _require_auth():
+    if not _require_user():
+
         return jsonify(
             {
                 "error": "Not authenticated"
@@ -1195,6 +1681,7 @@ def music_file(filename):
     )
 
     if not full_path:
+
         return jsonify(
             {
                 "error": "Track not found"
@@ -1210,7 +1697,9 @@ def music_file(filename):
 # CLI VOICE ENROLLMENT
 # ======================================================================
 
-def enroll_voice_cli(seconds=25):
+def enroll_voice_cli(
+    seconds=25
+):
 
     import sounddevice as sd
     import soundfile as sf
