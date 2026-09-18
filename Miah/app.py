@@ -1168,4 +1168,17 @@ def change_password():
 def maker_status():
 
     if not _require_maker():
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Maker authentication required.",
+            }
+        ), 401
+
+    return jsonify(
+        {
+            "ok": True,
+            "maker": True,
+        }
+    )
 
