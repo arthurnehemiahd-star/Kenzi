@@ -1,4 +1,4 @@
-```python
+python
 """
 MIAH — Flask app.
 
@@ -1834,4 +1834,4 @@ if __name__ == "__main__":
             port=port,
             debug=False,
         )
-```
+
