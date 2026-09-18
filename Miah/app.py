@@ -1,4 +1,4 @@
-```python
+
 """
 MIAH — Flask app.
 
@@ -1168,4 +1168,4 @@ def change_password():
 def maker_status():
 
     if not _require_maker()
-```
+
