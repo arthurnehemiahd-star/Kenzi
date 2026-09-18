@@ -5,6 +5,7 @@ Handles:
 
     - Password creation
     - Password verification
+    - Password changing
     - MIAH speaking-voice enrollment
     - Legacy speaker-profile functions kept for compatibility
 
@@ -180,11 +181,13 @@ def set_owner_voice(
 # PASSWORD SETUP
 # =============================================================================
 
-def set_password(password):
+def set_password(
+    password,
+):
     """
-    Set the owner's password.
+    Set the owner's password during first-run setup.
 
-    Only works before a password has already been created.
+    This function intentionally refuses to overwrite an existing password.
 
     Returns:
 
@@ -195,6 +198,12 @@ def set_password(password):
         (False, error_message)
     """
 
+    if not password:
+        return (
+            False,
+            "Password is required.",
+        )
+
     if len(password) < 4:
         return (
             False,
@@ -203,6 +212,7 @@ def set_password(password):
 
     db = load_db()
 
+    # First-run setup must never overwrite an existing password.
     if db.get("password_hash"):
         return (
             False,
@@ -221,10 +231,19 @@ def set_password(password):
     return True, None
 
 
-def check_password(password):
+# =============================================================================
+# PASSWORD VERIFICATION
+# =============================================================================
+
+def check_password(
+    password,
+):
     """
     Check the supplied password.
     """
+
+    if not password:
+        return False
 
     db = load_db()
 
@@ -244,6 +263,78 @@ def check_password(password):
         salt_hex,
         expected_hash,
     )
+
+
+# =============================================================================
+# CHANGE EXISTING PASSWORD
+# =============================================================================
+
+def change_password(
+    current_password,
+    new_password,
+):
+    """
+    Change an existing owner password.
+
+    Unlike set_password(), this function is specifically intended
+    for changing a password that already exists.
+
+    Returns:
+
+        (True, None)
+
+    or:
+
+        (False, error_message)
+    """
+
+    if not current_password:
+        return (
+            False,
+            "Current password is required.",
+        )
+
+    if not new_password:
+        return (
+            False,
+            "New password is required.",
+        )
+
+    if len(new_password) < 4:
+        return (
+            False,
+            "Password must be at least 4 characters.",
+        )
+
+    # Verify the existing password before allowing a change.
+    if not check_password(
+        current_password
+    ):
+        return (
+            False,
+            "Current password is incorrect.",
+        )
+
+    # Don't allow the user to "change" to the exact same password.
+    if current_password == new_password:
+        return (
+            False,
+            "Your new password must be different from the current password.",
+        )
+
+    db = load_db()
+
+    # Generate a completely new salt for the new password.
+    salt_hex, hash_hex = hash_password(
+        new_password
+    )
+
+    db["password_salt"] = salt_hex
+    db["password_hash"] = hash_hex
+
+    save_db(db)
+
+    return True, None
 
 
 # =============================================================================
@@ -375,6 +466,10 @@ def try_voice_login(
         True,
     )
 
+
+# =============================================================================
+# LEGACY VOICE PROFILE LEARNING
+# =============================================================================
 
 def record_voice_sample(
     audio_path,
