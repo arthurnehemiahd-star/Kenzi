@@ -1,3 +1,4 @@
+```python
 """
 MIAH — voice input and voice output.
 
@@ -13,21 +14,20 @@ Three separate capabilities:
        Resemblyzer support retained for compatibility with the
        existing voice-profile code.
 
-The MIAH owner voice is automatically restored from Supabase when
-the Render filesystem no longer has the local cached WAV.
+Heavy AI libraries are loaded only when the related feature
+is actually used. This keeps Flask/Gunicorn startup fast.
 """
 
 import os
 import subprocess
 import tempfile
 
-import numpy as np
+
+# =============================================================================
+# CONFIG
+# =============================================================================
 
 from config import REFERENCE_CLIP_PATH
-
-from supabase_store import (
-    restore_owner_voice_if_needed,
-)
 
 
 # =============================================================================
@@ -38,15 +38,21 @@ _whisper_model = None
 
 
 def get_whisper_model():
+    """
+    Load Whisper only when speech-to-text is actually requested.
+    """
+
     global _whisper_model
 
     if _whisper_model is None:
 
+        print("[voice] Loading Whisper model...")
+
         import whisper
 
-        _whisper_model = (
-            whisper.load_model("base")
-        )
+        _whisper_model = whisper.load_model("base")
+
+        print("[voice] Whisper model loaded.")
 
     return _whisper_model
 
@@ -58,9 +64,7 @@ def transcribe_file(path):
 
     model = get_whisper_model()
 
-    result = model.transcribe(
-        path
-    )
+    result = model.transcribe(path)
 
     return (
         result.get("text")
@@ -76,9 +80,15 @@ _tts_model = None
 
 
 def get_tts_model():
+    """
+    Load XTTS only when MIAH actually needs to speak.
+    """
+
     global _tts_model
 
     if _tts_model is None:
+
+        print("[voice] Loading XTTS model...")
 
         from TTS.api import TTS
 
@@ -87,6 +97,8 @@ def get_tts_model():
             "multi-dataset/xtts_v2"
         )
 
+        print("[voice] XTTS model loaded.")
+
     return _tts_model
 
 
@@ -94,9 +106,13 @@ def ensure_reference_voice():
     """
     Make sure MIAH's owner voice exists locally.
 
-    On Render Free, the local filesystem can disappear after a restart.
-    When that happens, restore the WAV from Supabase.
+    Render's filesystem is temporary, so the saved voice is restored
+    from Supabase when the local WAV is missing.
     """
+
+    from supabase_store import (
+        restore_owner_voice_if_needed,
+    )
 
     return restore_owner_voice_if_needed(
         REFERENCE_CLIP_PATH
@@ -108,7 +124,7 @@ def synthesize_speech(
     language="en",
 ):
     """
-    Speak `text` using MIAH's enrolled voice.
+    Speak text using MIAH's enrolled owner voice.
 
     Returns the path to a temporary WAV file.
     """
@@ -121,11 +137,9 @@ def synthesize_speech(
 
     tts = get_tts_model()
 
-    fd, output_path = (
-        tempfile.mkstemp(
-            suffix=".wav",
-            prefix="miah_reply_",
-        )
+    fd, output_path = tempfile.mkstemp(
+        suffix=".wav",
+        prefix="miah_reply_",
     )
 
     os.close(fd)
@@ -141,12 +155,8 @@ def synthesize_speech(
 
     except Exception:
 
-        if os.path.exists(
-            output_path
-        ):
-            os.unlink(
-                output_path
-            )
+        if os.path.exists(output_path):
+            os.unlink(output_path)
 
         raise
 
@@ -161,15 +171,21 @@ _voice_encoder = None
 
 
 def get_voice_encoder():
+    """
+    Load Resemblyzer only when speaker recognition is needed.
+    """
+
     global _voice_encoder
 
     if _voice_encoder is None:
 
+        print("[voice] Loading Resemblyzer...")
+
         from resemblyzer import VoiceEncoder
 
-        _voice_encoder = (
-            VoiceEncoder()
-        )
+        _voice_encoder = VoiceEncoder()
+
+        print("[voice] Resemblyzer loaded.")
 
     return _voice_encoder
 
@@ -218,18 +234,20 @@ def compute_embedding_from_file(path):
 
     finally:
 
-        if os.path.exists(
-            wav_path
-        ):
-            os.unlink(
-                wav_path
-            )
+        if os.path.exists(wav_path):
+            os.unlink(wav_path)
 
 
 def cosine_similarity(
     a,
     b,
 ):
+    """
+    Calculate cosine similarity between two speaker embeddings.
+    """
+
+    import numpy as np
+
     a = np.asarray(
         a,
         dtype=np.float32,
@@ -260,7 +278,8 @@ def convert_to_reference_wav(
     output_path,
 ):
     """
-    Convert browser-recorded audio into the WAV format XTTS expects.
+    Convert browser-recorded audio into the WAV format
+    expected by XTTS.
     """
 
     parent = os.path.dirname(
@@ -288,3 +307,4 @@ def convert_to_reference_wav(
         check=True,
         capture_output=True,
     )
+```
