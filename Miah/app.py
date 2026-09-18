@@ -1,4 +1,4 @@
-python
+
 """
 MIAH — Flask app.
 
