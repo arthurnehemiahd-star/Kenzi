@@ -80,8 +80,13 @@
         }
 
         body {
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont,
-                "Segoe UI", sans-serif;
+            font-family:
+                Inter,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
 
             background: var(--bg);
             color: var(--text);
@@ -1147,7 +1152,9 @@
             left: 50%;
             bottom: 28px;
 
-            transform: translateX(-50%) translateY(20px);
+            transform:
+                translateX(-50%)
+                translateY(20px);
 
             z-index: 200;
 
@@ -1476,8 +1483,6 @@
 
                 </div>
 
-                <!-- NEW CHANGE PASSWORD BUTTON -->
-
                 <button
                     id="change-password-button"
                     class="nav-button"
@@ -1541,9 +1546,7 @@
             </header>
 
 
-            <!-- ====================================================
-                 CHAT VIEW
-                 ==================================================== -->
+            <!-- CHAT -->
 
             <section
                 id="chat-view"
@@ -1627,9 +1630,7 @@
             </section>
 
 
-            <!-- ====================================================
-                 VOICE VIEW
-                 ==================================================== -->
+            <!-- VOICE -->
 
             <section
                 id="voice-view"
@@ -1668,9 +1669,7 @@
             </section>
 
 
-            <!-- ====================================================
-                 MUSIC VIEW
-                 ==================================================== -->
+            <!-- MUSIC -->
 
             <section
                 id="music-view"
@@ -1701,9 +1700,7 @@
     </section>
 
 
-    <!-- ============================================================
-         CAMERA MODAL
-         ============================================================ -->
+    <!-- CAMERA -->
 
     <div
         id="camera-modal"
@@ -1761,9 +1758,7 @@
     </div>
 
 
-    <!-- ============================================================
-         INFO MODAL
-         ============================================================ -->
+    <!-- INFO -->
 
     <div
         id="info-modal"
@@ -1810,9 +1805,7 @@
     </div>
 
 
-    <!-- ============================================================
-         CHANGE PASSWORD MODAL
-         ============================================================ -->
+    <!-- CHANGE PASSWORD -->
 
     <div
         id="change-password-modal"
@@ -1919,9 +1912,7 @@
     </div>
 
 
-    <!-- ============================================================
-         TOAST
-         ============================================================ -->
+    <!-- TOAST -->
 
     <div
         id="toast"
@@ -1935,9 +1926,11 @@
            MIAH FRONTEND
            ============================================================ */
 
-        const API = "https://kenzi.onrender.com";
+        const API =
+            "https://kenzi.onrender.com";
 
-        const TOKEN_KEY = "miah_auth_token";
+        const TOKEN_KEY =
+            "miah_auth_token";
 
 
         /* ============================================================
@@ -2144,17 +2137,23 @@
            STATE
            ============================================================ */
 
-        let currentView = "chat";
+        let currentView =
+            "chat";
 
-        let mediaStream = null;
+        let mediaStream =
+            null;
 
-        let mediaRecorder = null;
+        let mediaRecorder =
+            null;
 
-        let recordedChunks = [];
+        let recordedChunks =
+            [];
 
-        let isRecordingVoice = false;
+        let isRecordingVoice =
+            false;
 
-        let currentAudio = null;
+        let currentAudio =
+            null;
 
 
         /* ============================================================
@@ -2375,6 +2374,12 @@
                     "Connected"
                 );
 
+
+                /*
+                 * Check whether we already have an
+                 * authenticated MIAH session.
+                 */
+
                 const token =
                     getToken();
 
@@ -2392,9 +2397,33 @@
                         const session =
                             await sessionResponse.json();
 
+
+                        /*
+                         * IMPORTANT:
+                         *
+                         * Arthur's maker session must
+                         * go to the maker dashboard.
+                         */
+
                         if (
                             session.authenticated
                         ) {
+
+                            if (
+                                session.role ===
+                                "maker"
+                            ) {
+
+                                window.location.href =
+                                    "/arthur.html";
+
+                                return;
+                            }
+
+
+                            /*
+                             * Normal Kenzi session.
+                             */
 
                             openMainScreen();
 
@@ -2404,6 +2433,7 @@
 
                     clearToken();
                 }
+
 
                 if (
                     data.password_set
@@ -2613,6 +2643,7 @@
                 const data =
                     await response.json();
 
+
                 if (!response.ok) {
 
                     throw new Error(
@@ -2620,6 +2651,11 @@
                         "Login failed."
                     );
                 }
+
+
+                /*
+                 * Save the token returned by the backend.
+                 */
 
                 if (data.token) {
 
@@ -2631,6 +2667,40 @@
                 loginPassword.value =
                     "";
 
+
+                /*
+                 * ====================================================
+                 * ARTHUR MAKER LOGIN
+                 * ====================================================
+                 *
+                 * The backend checks the maker password.
+                 *
+                 * We DO NOT put Arthur's password here.
+                 *
+                 * The backend simply tells us:
+                 *
+                 *     role = "maker"
+                 *
+                 * if the maker password was correct.
+                 */
+
+                if (
+                    data.role === "maker"
+                ) {
+
+                    window.location.href =
+                        "/arthur.html";
+
+                    return;
+                }
+
+
+                /*
+                 * ====================================================
+                 * NORMAL KENZI LOGIN
+                 * ====================================================
+                 */
+
                 openMainScreen();
 
                 showToast(
@@ -2640,6 +2710,7 @@
             } catch (error) {
 
                 console.error(
+                    "Login error:",
                     error
                 );
 
