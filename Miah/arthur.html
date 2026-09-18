@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta name="theme-color" content="#0A0E17">
+
+    <title>MIAH — Arthur Maker Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #080b12;
+            --surface: #101622;
+            --surface-2: #151d2b;
+            --border: rgba(255, 255, 255, 0.09);
+            --text: #f4f7fb;
+            --muted: #8c98aa;
+            --primary: #4fd1ff;
+            --primary-soft: rgba(79, 209, 255, 0.12);
+            --success: #49d17d;
+            --danger: #ff6b6b;
+            --amber: #e8b34d;
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(
+                    circle at top right,
+                    rgba(79, 209, 255, 0.08),
+                    transparent 35%
+                ),
+                var(--bg);
+            color: var(--text);
+            font-family:
+                Inter,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        .app {
+            min-height: 100vh;
+        }
+
+        /* =========================
+           TOP BAR
+        ========================== */
+
+        .topbar {
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(8, 11, 18, 0.88);
+            backdrop-filter: blur(18px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-orb {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background:
+                radial-gradient(
+                    circle at 35% 30%,
+                    #ffffff,
+                    var(--primary) 25%,
+                    #167ea1 65%,
+                    #07121b 100%
+                );
+            box-shadow:
+                0 0 25px rgba(79, 209, 255, 0.35);
+        }
+
+        .brand-name {
+            font-size: 21px;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        .brand-subtitle {
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .button {
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+
+        .button:hover {
+            border-color: rgba(79, 209, 255, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .button.primary {
+            background: var(--primary-soft);
+            border-color: rgba(79, 209, 255, 0.35);
+            color: var(--primary);
+        }
+
+        .button.danger {
+            color: var(--danger);
+        }
+
+        /* =========================
+           MAIN
+        ========================== */
+
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 35px 25px 60px;
+        }
+
+        .welcome {
+            margin-bottom: 28px;
+        }
+
+        .welcome h1 {
+            font-size: clamp(28px, 4vw, 42px);
+            margin-bottom: 8px;
+        }
+
+        .welcome p {
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        /* =========================
+           STATUS CARDS
+        ========================== */
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: linear-gradient(
+                145deg,
+                rgba(21, 29, 43, 0.96),
+                rgba(13, 19, 29, 0.96)
+            );
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .card-label {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .card-value {
+            font-size: 24px;
+            font-weight: 750;
+        }
+
+        .online {
+            color: var(--success);
+        }
+
+        .offline {
+            color: var(--danger);
+        }
+
+        /* =========================
+           GRID
+        ========================== */
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-header h2 {
+            font-size: 17px;
+        }
+
+        .panel-header span {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .panel-body {
+            padding: 20px;
+        }
+
+        /* =========================
+           CONVERSATIONS
+        ========================== */
+
+        #conversationList {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 650px;
+            overflow-y: auto;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 13px;
+            border: 1px solid var(--border);
+        }
+
+        .message.user {
+            background: rgba(79, 209, 255, 0.055);
+        }
+
+        .message.assistant {
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .message-role {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--primary);
+            margin-bottom: 7px;
+            font-weight: 700;
+        }
+
+        .message.assistant .message-role {
+            color: var(--amber);
+        }
+
+        .message-text {
+            color: #dfe7f2;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 45px 20px;
+            color: var(--muted);
+        }
+
+        /* =========================
+           MEMORY
+        ========================== */
+
+        .memory-box {
+            min-height: 160px;
+            padding: 16px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid var(--border);
+            color: #dce4ef;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        /* =========================
+           SYSTEM INFO
+        ========================== */
+
+        .info-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .info-name {
+            color: var(--muted);
+        }
+
+        .info-value {
+            text-align: right;
+            word-break: break-word;
+        }
+
+        /* =========================
+           LOADING
+        ========================== */
+
+        .loading {
+            color: var(--muted);
+            padding: 20px 0;
+            text-align: center;
+        }
+
+        .error {
+            color: var(--danger);
+            padding: 15px;
+            border: 1px solid rgba(255, 107, 107, 0.25);
+            background: rgba(255, 107, 107, 0.06);
+            border-radius: 10px;
+        }
+
+        /* =========================
+           FOOTER
+        ========================== */
+
+        footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 12px;
+            padding: 35px 20px;
+        }
+
+        /* =========================
+           MOBILE
+        ========================== */
+
+        @media (max-width: 1000px) {
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .topbar {
+                padding: 0 15px;
+            }
+
+            .brand-subtitle {
+                display: none;
+            }
+
+            .top-actions .button.primary {
+                display: none;
+            }
+
+            main {
+                padding: 25px 15px 45px;
+            }
+
+            .cards {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .card-value {
+                font-size: 19px;
+            }
+
+            .panel-header {
+                padding: 15px;
+            }
+
+            .panel-body {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <header class="topbar">
+
+        <div class="brand">
+
+            <div class="brand-orb"></div>
+
+            <div>
+                <div class="brand-name">MIAH</div>
+                <div class="brand-subtitle">
+                    Arthur Maker Dashboard
+                </div>
+            </div>
+
+        </div>
+
+        <div class="top-actions">
+
+            <button
+                class="button primary"
+                onclick="loadDashboard()"
+            >
+                Refresh
+            </button>
+
+            <button
+                class="button danger"
+                onclick="logout()"
+            >
+                Logout
+            </button>
+
+        </div>
+
+    </header>
+
+
+    <main>
+
+        <section class="welcome">
+
+            <h1>Welcome, Arthur.</h1>
+
+            <p>
+                This is the private maker dashboard for MIAH.
+                From here we can monitor MIAH's system status,
+                conversation history, and stored memory.
+            </p>
+
+        </section>
+
+
+        <!-- STATUS CARDS -->
+
+        <section class="cards">
+
+            <div class="card">
+
+                <div class="card-label">
+                    Backend
+                </div>
+
+                <div
+                    id="backendStatus"
+                    class="card-value"
+                >
+                    Checking...
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div class="card-label">
+                    Conversations
+                </div>
+
+                <div
+                    id="messageCount"
+                    class="card-value"
+                >
+                    —
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div class="card-label">
+                    Voice
+                </div>
+
+                <div
+                    id="voiceStatus"
+                    class="card-value"
+                >
+                    —
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div class="card-label">
+                    Password
+                </div>
+
+                <div
+                    id="passwordStatus"
+                    class="card-value"
+                >
+                    —
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- MAIN CONTENT -->
+
+        <section class="content-grid">
+
+
+            <!-- CONVERSATIONS -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h2>Conversation History</h2>
+                        <span>
+                            MIAH user conversation
+                        </span>
+                    </div>
+
+                    <button
+                        class="button"
+                        onclick="loadConversations()"
+                    >
+                        Reload
+                    </button>
+
+                </div>
+
+                <div class="panel-body">
+
+                    <div id="conversationList">
+
+                        <div class="loading">
+                            Loading conversations...
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- RIGHT SIDE -->
+
+            <div>
+
+                <!-- SYSTEM -->
+
+                <div
+                    class="panel"
+                    style="margin-bottom: 20px;"
+                >
+
+                    <div class="panel-header">
+
+                        <div>
+                            <h2>System Information</h2>
+                            <span>MIAH configuration</span>
+                        </div>
+
+                    </div>
+
+                    <div class="panel-body">
+
+                        <div
+                            id="systemInfo"
+                            class="info-list"
+                        >
+
+                            <div class="loading">
+                                Loading...
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- MEMORY -->
+
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <div>
+                            <h2>MIAH Memory</h2>
+                            <span>Current memory summary</span>
+                        </div>
+
+                    </div>
+
+                    <div class="panel-body">
+
+                        <div
+                            id="memoryBox"
+                            class="memory-box"
+                        >
+                            Loading memory...
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <footer>
+        MIAH • Maker Dashboard • Arthur
+    </footer>
+
+</div>
+
+
+<script>
+
+    /*
+     * MIAH BACKEND
+     *
+     * Keep this the same URL used by the main MIAH frontend.
+     */
+
+    const API = "https://kenzi.onrender.com";
+
+    const TOKEN_KEY = "miah_auth_token";
+
+
+    /*
+     * Get Arthur's authentication token.
+     */
+
+    function getToken() {
+
+        return localStorage.getItem(TOKEN_KEY);
+
+    }
+
+
+    /*
+     * Authenticated API request.
+     */
+
+    async function apiRequest(endpoint) {
+
+        const token = getToken();
+
+        if (!token) {
+
+            redirectToLogin();
+
+            throw new Error("Not authenticated.");
+
+        }
+
+
+        const response = await fetch(
+            `${API}${endpoint}`,
+            {
+                method: "GET",
+
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+
+        if (response.status === 401 ||
+            response.status === 403) {
+
+            localStorage.removeItem(TOKEN_KEY);
+
+            redirectToLogin();
+
+            throw new Error(
+                "Maker authentication required."
+            );
+
+        }
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Request failed: ${response.status}`
+            );
+
+        }
+
+
+        return response.json();
+
+    }
+
+
+    /*
+     * Redirect back to the normal MIAH login.
+     */
+
+    function redirectToLogin() {
+
+        window.location.href = "/";
+
+    }
+
+
+    /*
+     * Load dashboard status.
+     */
+
+    async function loadStatus() {
+
+        try {
+
+            const data =
+                await apiRequest("/api/maker/status");
+
+
+            const backendStatus =
+                document.getElementById(
+                    "backendStatus"
+                );
+
+            if (data.backend_online) {
+
+                backendStatus.textContent = "Online";
+
+                backendStatus.className =
+                    "card-value online";
+
+            } else {
+
+                backendStatus.textContent = "Offline";
+
+                backendStatus.className =
+                    "card-value offline";
+
+            }
+
+
+            document.getElementById(
+                "messageCount"
+            ).textContent =
+                data.conversation_messages ?? "0";
+
+
+            document.getElementById(
+                "voiceStatus"
+            ).textContent =
+                data.voice_enrolled
+                    ? "Enrolled"
+                    : "Not set";
+
+
+            document.getElementById(
+                "passwordStatus"
+            ).textContent =
+                data.password_set
+                    ? "Set"
+                    : "Not set";
+
+
+            const systemInfo =
+                document.getElementById(
+                    "systemInfo"
+                );
+
+
+            systemInfo.innerHTML = `
+
+                <div class="info-row">
+                    <span class="info-name">
+                        Maker
+                    </span>
+
+                    <span class="info-value">
+                        ${escapeHtml(data.maker ?? "Arthur")}
+                    </span>
+                </div>
+
+
+                <div class="info-row">
+                    <span class="info-name">
+                        User
+                    </span>
+
+                    <span class="info-value">
+                        ${escapeHtml(
+                            data.user ?? "Kenzi Richardson"
+                        )}
+                    </span>
+                </div>
+
+
+                <div class="info-row">
+                    <span class="info-name">
+                        Service
+                    </span>
+
+                    <span class="info-value">
+                        ${escapeHtml(data.service ?? "MIAH")}
+                    </span>
+                </div>
+
+
+                <div class="info-row">
+                    <span class="info-name">
+                        AI Model
+                    </span>
+
+                    <span class="info-value">
+                        ${escapeHtml(data.model ?? "Unknown")}
+                    </span>
+                </div>
+
+
+                <div class="info-row">
+                    <span class="info-name">
+                        Backend
+                    </span>
+
+                    <span class="info-value">
+                        Online
+                    </span>
+                </div>
+
+            `;
+
+        } catch (error) {
+
+            console.error(error);
+
+            document.getElementById(
+                "backendStatus"
+            ).textContent = "Error";
+
+            document.getElementById(
+                "backendStatus"
+            ).className = "card-value offline";
+
+        }
+
+    }
+
+
+    /*
+     * Load conversations.
+     */
+
+    async function loadConversations() {
+
+        const container =
+            document.getElementById(
+                "conversationList"
+            );
+
+
+        container.innerHTML = `
+            <div class="loading">
+                Loading conversations...
+            </div>
+        `;
+
+
+        try {
+
+            const data =
+                await apiRequest(
+                    "/api/maker/conversations"
+                );
+
+
+            const history =
+                data.history || [];
+
+
+            if (!history.length) {
+
+                container.innerHTML = `
+                    <div class="empty">
+                        No conversations yet.
+                    </div>
+                `;
+
+                return;
+
+            }
+
+
+            container.innerHTML = "";
+
+
+            history.forEach(message => {
+
+                const role =
+                    message.role || "unknown";
+
+
+                const content =
+                    message.content || "";
+
+
+                /*
+                 * Some LLM histories can contain
+                 * structured content instead of plain text.
+                 */
+
+                let text = "";
+
+
+                if (typeof content === "string") {
+
+                    text = content;
+
+                } else if (Array.isArray(content)) {
+
+                    text = content
+                        .map(item => {
+
+                            if (
+                                typeof item === "string"
+                            ) {
+                                return item;
+                            }
+
+                            return item.text || "";
+
+                        })
+                        .join("");
+
+                } else {
+
+                    text = JSON.stringify(content);
+
+                }
+
+
+                const messageElement =
+                    document.createElement("div");
+
+
+                messageElement.className =
+                    `message ${
+                        role === "user"
+                            ? "user"
+                            : "assistant"
+                    }`;
+
+
+                const roleElement =
+                    document.createElement("div");
+
+                roleElement.className =
+                    "message-role";
+
+
+                roleElement.textContent =
+                    role === "user"
+                        ? "Kenzi"
+                        : role === "assistant"
+                            ? "MIAH"
+                            : role;
+
+
+                const textElement =
+                    document.createElement("div");
+
+                textElement.className =
+                    "message-text";
+
+
+                textElement.textContent = text;
+
+
+                messageElement.appendChild(
+                    roleElement
+                );
+
+                messageElement.appendChild(
+                    textElement
+                );
+
+
+                container.appendChild(
+                    messageElement
+                );
+
+            });
+
+        } catch (error) {
+
+            console.error(error);
+
+            container.innerHTML = `
+                <div class="error">
+                    Could not load conversation history.
+                </div>
+            `;
+
+        }
+
+    }
+
+
+    /*
+     * Load MIAH memory.
+     */
+
+    async function loadMemory() {
+
+        const box =
+            document.getElementById(
+                "memoryBox"
+            );
+
+
+        try {
+
+            const data =
+                await apiRequest(
+                    "/api/maker/memory"
+                );
+
+
+            if (!data.memory_summary) {
+
+                box.textContent =
+                    "MIAH does not have a memory summary yet.";
+
+                return;
+
+            }
+
+
+            if (
+                typeof data.memory_summary ===
+                "string"
+            ) {
+
+                box.textContent =
+                    data.memory_summary;
+
+            } else {
+
+                box.textContent =
+                    JSON.stringify(
+                        data.memory_summary,
+                        null,
+                        2
+                    );
+
+            }
+
+        } catch (error) {
+
+            console.error(error);
+
+            box.textContent =
+                "Could not load MIAH memory.";
+
+        }
+
+    }
+
+
+    /*
+     * Refresh everything.
+     */
+
+    async function loadDashboard() {
+
+        await Promise.all([
+            loadStatus(),
+            loadConversations(),
+            loadMemory()
+        ]);
+
+    }
+
+
+    /*
+     * Logout Arthur.
+     */
+
+    async function logout() {
+
+        try {
+
+            const token = getToken();
+
+
+            await fetch(
+                `${API}/api/logout`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Authorization":
+                            `Bearer ${token}`
+                    }
+                }
+            );
+
+        } catch (error) {
+
+            console.error(error);
+
+        }
+
+
+        localStorage.removeItem(
+            TOKEN_KEY
+        );
+
+
+        window.location.href = "/";
+
+    }
+
+
+    /*
+     * Prevent HTML injection when displaying
+     * backend information.
+     */
+
+    function escapeHtml(value) {
+
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+
+    }
+
+
+    /*
+     * Start dashboard.
+     */
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        () => {
+
+            if (!getToken()) {
+
+                redirectToLogin();
+
+                return;
+
+            }
+
+
+            loadDashboard();
+
+        }
+    );
+
+</script>
+
+</body>
+</html>
